@@ -1,0 +1,150 @@
+<section class="review-page">
+  @if (view(); as data) {
+    <header>
+      <div>
+        <h1>Hàng chờ thẩm định</h1>
+        <p>{{ data.teamName }} · Chỉ hiển thị hồ sơ giao đúng cán bộ</p>
+      </div>
+      <span>{{
+        data.phase === 'ROUND_1'
+          ? 'Vòng 1 đang mở'
+          : data.phase === 'ROUND_2'
+            ? 'Vòng 2 đang mở'
+            : data.phase
+      }}</span>
+    </header>
+    @if (message()) {
+      <p class="message" role="status">{{ message() }}</p>
+    }
+    @if (data.cases.length) {
+      <div class="table-shell">
+        <div class="toolbar">
+          <strong>{{ data.cases.length }} hồ sơ</strong
+          ><small>So sánh tự chấm, minh chứng và điểm thẩm định trên cùng một hàng</small>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th class="unit">Đơn vị</th>
+                <th>Nội dung</th>
+                <th class="self">Tự chấm</th>
+                <th class="proof">Minh chứng</th>
+                <th class="award">Được chấm</th>
+                <th class="reason">Lý do giảm</th>
+                <th class="confirm">Xác nhận</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of data.cases; track item.id) {
+                <tr [class.completed]="item.status === 'COMPLETED'">
+                  <td>
+                    <strong>{{ item.organizationName }}</strong
+                    ><span>{{ item.status === 'COMPLETED' ? 'Đã thẩm định' : 'Chờ xử lý' }}</span>
+                  </td>
+                  <td class="content">
+                    <b>{{ item.lineCode }} · {{ item.lineTitle }}</b>
+                    @if (item.summary) {
+                      <p>{{ item.summary }}</p>
+                    }
+                    @if (item.roundNumber === 2) {
+                      <div class="round-one-context">
+                        <strong>Vòng 1: {{ item.roundOneScore }}/{{ item.maximumScore }}</strong>
+                        @if (item.roundOneReason) {
+                          <p>{{ item.roundOneReason }}</p>
+                        }
+                        @if (item.explanationBody) {
+                          <p><b>Đơn vị giải trình:</b> {{ item.explanationBody }}</p>
+                        }
+                        @if (item.explanationEvidenceUrl) {
+                          <a
+                            [href]="item.explanationEvidenceUrl"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            >Mở minh chứng bổ sung ↗</a
+                          >
+                        }
+                      </div>
+                    }
+                    <small>{{ item.groupCode }} · tối đa {{ item.maximumScore }} điểm</small>
+                  </td>
+                  <td class="number">{{ item.selfScore }}</td>
+                  <td>
+                    @if (item.evidenceUrl) {
+                      <a [href]="item.evidenceUrl" target="_blank" rel="noopener noreferrer"
+                        >Mở minh chứng ↗</a
+                      >
+                    } @else {
+                      <span>Không yêu cầu link</span>
+                    }
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      min="0"
+                      [max]="item.maximumScore"
+                      step="0.25"
+                      [value]="draft(item).awardedScore ?? ''"
+                      [disabled]="!editable(item)"
+                      (input)="setScore(item, $event)"
+                      [attr.aria-label]="'Điểm thẩm định ' + item.lineCode"
+                    />
+                  </td>
+                  <td>
+                    <textarea
+                      rows="2"
+                      [placeholder]="
+                        item.roundNumber === 1
+                          ? 'Lý do giảm hoặc lý do trả hồ sơ'
+                          : 'Kết luận sau giải trình'
+                      "
+                      [value]="draft(item).reason"
+                      [disabled]="!editable(item)"
+                      (input)="setReason(item, $event)"
+                      [attr.aria-label]="'Lý do ' + item.lineCode"
+                    ></textarea>
+                  </td>
+                  <td>
+                    <label class="checked"
+                      ><input
+                        type="checkbox"
+                        [checked]="draft(item).evidenceChecked"
+                        [disabled]="!editable(item)"
+                        (change)="setChecked(item, $event)"
+                      /><span>Đã kiểm tra</span></label
+                    ><button
+                      type="button"
+                      [disabled]="!editable(item) || busyCase() === item.id"
+                      (click)="complete(item)"
+                    >
+                      Chốt vòng {{ item.roundNumber }}
+                    </button>
+                    @if (item.roundNumber === 1 && editable(item)) {
+                      <button
+                        type="button"
+                        class="return-button"
+                        [disabled]="busyCase() === item.id"
+                        (click)="returnToUnit(item)"
+                      >
+                        Trả bổ sung
+                      </button>
+                    }
+                    @if (item.decidedByName) {
+                      <small>{{ item.decidedByName }}</small>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    } @else {
+      <div class="empty">
+        <span aria-hidden="true">✓</span>
+        <h2>Chưa có hồ sơ được giao</h2>
+        <p>Hồ sơ chỉ xuất hiện sau khi đơn vị gửi và assignment khớp cả Tổ lẫn cán bộ phụ trách.</p>
+      </div>
+    }
+  }
+</section>

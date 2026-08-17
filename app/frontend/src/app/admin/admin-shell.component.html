@@ -1,0 +1,150 @@
+<a class="skip-link" href="#admin-main" (click)="focusMain($event)">Bỏ qua điều hướng</a>
+<div class="admin-shell" [class.admin-shell--drawer-open]="drawerOpen()">
+  <aside class="admin-sidebar" [attr.aria-label]="'Điều hướng ' + workspaceMeta.label">
+    <a
+      class="admin-brand"
+      [routerLink]="workspaceMeta.home"
+      aria-label="Dấu Xanh Hải Phòng — về trang chính"
+      (click)="closeDrawer()"
+    >
+      <img
+        class="admin-brand__mark"
+        src="brand/dau-xanh-mark.svg"
+        width="32"
+        height="32"
+        alt=""
+        aria-hidden="true"
+      />
+      <span class="admin-brand__copy"
+        ><strong>Dấu Xanh</strong><small>Thành đoàn Hải Phòng</small></span
+      >
+    </a>
+
+    <div class="role-card">
+      <span>Không gian làm việc</span><strong>{{ workspaceMeta.label }}</strong
+      ><small>{{ workspaceMeta.scope }}</small>
+    </div>
+
+    <nav class="admin-nav">
+      @for (group of navigation; track group.label ?? 'primary') {
+        <section class="admin-nav__group">
+          @if (group.label) {
+            <h2>{{ group.label }}</h2>
+          }
+          <ul>
+            @for (item of group.items; track item.route) {
+              <li>
+                <a
+                  [routerLink]="item.route"
+                  routerLinkActive="admin-nav__item--active"
+                  [routerLinkActiveOptions]="{ exact: true }"
+                  class="admin-nav__item"
+                  (click)="closeDrawer()"
+                  ><app-icon [name]="item.icon" /><span>{{ item.label }}</span></a
+                >
+              </li>
+            }
+          </ul>
+        </section>
+      }
+    </nav>
+
+    <button
+      class="admin-profile"
+      data-profile-sidebar
+      type="button"
+      [attr.aria-expanded]="profileOpen()"
+      aria-controls="account-menu"
+      aria-haspopup="dialog"
+      (click)="toggleProfile('sidebar')"
+    >
+      <span class="avatar" aria-hidden="true">{{ initials() }}</span>
+      <span class="admin-profile__copy"
+        ><strong>{{ auth.account()?.displayName }}</strong
+        ><small>{{ workspaceMeta.label }}</small></span
+      >
+      <app-icon name="chevron" />
+    </button>
+  </aside>
+
+  <button
+    class="sidebar-scrim"
+    type="button"
+    aria-label="Đóng điều hướng"
+    (click)="closeDrawer()"
+  ></button>
+  <header class="admin-topbar">
+    <button
+      class="icon-button menu-trigger"
+      data-menu-trigger
+      type="button"
+      aria-label="Mở điều hướng"
+      [attr.aria-expanded]="drawerOpen()"
+      (click)="toggleDrawer()"
+    >
+      <app-icon name="menu" />
+    </button>
+    <div class="admin-topbar__context">
+      <strong>{{ topbarTitle() }}</strong
+      ><span><i aria-hidden="true"></i>{{ topbarDetail() }}</span>
+    </div>
+    <div class="admin-topbar__actions">
+      <span class="session-state"><i aria-hidden="true"></i>Đã xác thực</span
+      ><span class="topbar-divider" aria-hidden="true"></span
+      ><button
+        class="topbar-avatar"
+        data-profile-topbar
+        type="button"
+        aria-label="Mở tài khoản"
+        [attr.aria-expanded]="profileOpen()"
+        aria-controls="account-menu"
+        aria-haspopup="dialog"
+        (click)="toggleProfile('topbar')"
+      >
+        {{ initials() }}
+      </button>
+    </div>
+  </header>
+  @if (session.warningVisible()) {
+    <section class="session-warning" role="alert" aria-labelledby="session-warning-title">
+      <div>
+        <strong id="session-warning-title">Phiên sắp hết hạn</strong>
+        <span>Còn {{ sessionTimeRemaining() }} do không hoạt động.</span>
+      </div>
+      <button
+        class="button button--secondary"
+        type="button"
+        [disabled]="refreshingSession()"
+        (click)="extendSession()"
+      >
+        {{ refreshingSession() ? 'Đang duy trì…' : 'Tiếp tục làm việc' }}
+      </button>
+    </section>
+  }
+  <main id="admin-main" class="admin-main" tabindex="-1"><router-outlet /></main>
+
+  @if (profileOpen()) {
+    <section
+      id="account-menu"
+      class="profile-popover"
+      [class.profile-popover--topbar]="profileOrigin() === 'topbar'"
+      aria-label="Tài khoản hiện tại"
+      tabindex="-1"
+    >
+      <strong>{{ auth.account()?.displayName }}</strong
+      ><span>{{ auth.account()?.id }}</span
+      ><small>{{ workspaceMeta.label }} · {{ workspaceMeta.scope }}</small>
+      <hr />
+      @if (canSwitchWorkspace()) {
+        <a routerLink="/superadmin/lifecycle" (click)="closeProfile()">Superadmin</a>
+        <a routerLink="/admin/scorecard-templates" (click)="closeProfile()">Admin chiến dịch</a>
+      }
+      @if (accountError()) {
+        <p class="profile-popover__error" role="alert">{{ accountError() }}</p>
+      }
+      <button type="button" [disabled]="loggingOut()" (click)="logout()">
+        {{ loggingOut() ? 'Đang đăng xuất…' : 'Đăng xuất' }}
+      </button>
+    </section>
+  }
+</div>

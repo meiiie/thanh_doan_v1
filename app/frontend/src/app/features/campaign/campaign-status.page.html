@@ -1,0 +1,96 @@
+<section class="status-page">
+  @if (status(); as campaign) {
+    <header class="page-heading">
+      <div>
+        <p class="eyebrow">Dữ liệu đang vận hành</p>
+        <h1>{{ campaign.name }}</h1>
+        <p>
+          Trạng thái được đọc trực tiếp từ cơ sở dữ liệu local; không có hồ sơ hoặc kết quả giả.
+        </p>
+      </div>
+      <span class="phase">{{ phaseLabel(campaign.phase) }}</span>
+    </header>
+
+    <div class="metrics" aria-label="Quy mô và khối lượng hiện tại">
+      <article>
+        <span class="metric-group-label">Nguồn tiêu chí</span>
+        <div class="metric-pair">
+          <div>
+            <strong>{{ campaign.scorecardGroups }}</strong
+            ><span>hạng mục</span>
+          </div>
+          <div>
+            <strong>{{ campaign.scorecardLines }}</strong
+            ><span>dòng chấm</span>
+          </div>
+        </div>
+      </article>
+      <article>
+        <span class="metric-group-label">Phạm vi triển khai</span>
+        <div class="metric-pair">
+          <div>
+            <strong>{{ campaign.documentedUnitGroups }}</strong
+            ><span>khối</span>
+          </div>
+          <div>
+            <strong>{{ campaign.documentedUnits }}</strong
+            ><span>đơn vị</span>
+          </div>
+        </div>
+      </article>
+      <article>
+        <span class="metric-group-label">Vận hành hiện tại</span>
+        <div class="metric-pair">
+          <div>
+            <strong>{{ campaign.activeAccounts }}</strong
+            ><span>tài khoản</span>
+          </div>
+          <div>
+            <strong>{{ campaign.submissions }}</strong
+            ><span>hồ sơ</span>
+          </div>
+        </div>
+      </article>
+    </div>
+
+    <section class="readiness" aria-labelledby="readiness-title">
+      <div class="section-title">
+        <div>
+          <h2 id="readiness-title">Điều kiện để mở vận hành</h2>
+          <p>Chỉ đánh dấu hoàn tất khi dữ liệu thật đã có trong hệ thống.</p>
+        </div>
+      </div>
+      <ol>
+        @for (item of campaign.readiness; track item.code) {
+          <li [class.ready]="item.ready">
+            <span class="check" aria-hidden="true">{{ item.ready ? '✓' : $index + 1 }}</span>
+            <div>
+              <strong>{{ item.label }}</strong>
+              <p>{{ item.detail }}</p>
+            </div>
+          </li>
+        }
+      </ol>
+    </section>
+
+    <section class="empty-work">
+      <div>
+        <h2>Khối lượng công việc phát sinh</h2>
+        <p>
+          {{ campaign.submissions }} hồ sơ · {{ campaign.reviewCases }} case thẩm định ·
+          {{ campaign.finalResults }} kết quả cuối
+        </p>
+      </div>
+      @if (campaign.submissions === 0) {
+        <p class="empty-note">
+          Chưa phát sinh công việc. Superadmin cần tạo tài khoản, khai báo đơn vị và phân công bằng
+          dữ liệu được xác nhận.
+        </p>
+      }
+    </section>
+  } @else if (error()) {
+    <p class="load-error" role="alert">{{ error() }}</p>
+  } @else {
+    <p class="loading">Đang đọc trạng thái…</p>
+  }
+</section>

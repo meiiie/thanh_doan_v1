@@ -1,0 +1,87 @@
+name: campaign-workflow
+
+services:
+  database:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-campaign}
+      POSTGRES_USER: ${POSTGRES_USER:-campaign}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - campaign_postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+    stop_grace_period: 30s
+    networks: [application]
+    security_opt: ["no-new-privileges:true"]
+
+  backend:
+    build:
+      context: ./app/backend
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      CAMPAIGN_DB_URL: jdbc:postgresql://database:5432/${POSTGRES_DB:-campaign}
+      CAMPAIGN_DB_USER: ${POSTGRES_USER:-campaign}
+      CAMPAIGN_DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      APP_BOOTSTRAP_ENABLED: ${APP_BOOTSTRAP_ENABLED:-false}
+      APP_BOOTSTRAP_USERNAME: ${APP_BOOTSTRAP_USERNAME:-superadmin}
+      APP_BOOTSTRAP_PASSWORD: ${APP_BOOTSTRAP_PASSWORD:-}
+      APP_BOOTSTRAP_DISPLAY_NAME: ${APP_BOOTSTRAP_DISPLAY_NAME:-Quản trị hệ thống}
+      APP_SESSION_COOKIE_SECURE: ${APP_SESSION_COOKIE_SECURE:-true}
+    depends_on:
+      database:
+        condition: service_healthy
+    expose: ["8081", "9090"]
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "wget -q -O - http://127.0.0.1:9090/actuator/health/readiness | grep -q '\"status\":\"UP\"'",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    init: true
+    read_only: true
+    tmpfs: ["/tmp:rw,noexec,nosuid,size=64m"]
+    restart: unless-stopped
+    stop_grace_period: 40s
+    networks: [application]
+    security_opt: ["no-new-privileges:true"]
+
+  frontend:
+    build:
+      context: ./app/frontend
+    ports:
+      - "127.0.0.1:${APP_PORT:-4318}:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1:8080/healthz | grep -q '^ok$'"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+      - /var/cache/nginx:rw,noexec,nosuid,size=16m
+    restart: unless-stopped
+    stop_grace_period: 15s
+    networks: [edge, application]
+    security_opt: ["no-new-privileges:true"]
+
+volumes:
+  campaign_postgres_data:
+
+networks:
+  edge:
+  application:
+    internal: true

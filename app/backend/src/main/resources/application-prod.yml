@@ -1,0 +1,38 @@
+spring:
+  config:
+    activate:
+      on-profile: prod
+    import: ${SPRING_CONFIG_IMPORT:optional:configtree:/run/secrets/}
+  datasource:
+    url: ${CAMPAIGN_DB_URL}
+    username: ${CAMPAIGN_DB_USER}
+    password: ${CAMPAIGN_DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${CAMPAIGN_DB_POOL_MAX:10}
+      minimum-idle: ${CAMPAIGN_DB_POOL_MIN:2}
+      connection-timeout: 5000
+      validation-timeout: 3000
+  flyway:
+    enabled: true
+
+server:
+  address: 0.0.0.0
+  forward-headers-strategy: framework
+  servlet:
+    session:
+      cookie:
+        secure: ${APP_SESSION_COOKIE_SECURE:true}
+
+management:
+  server:
+    address: 0.0.0.0
+    port: 9090
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+
+app:
+  bootstrap:
+    enabled: ${APP_BOOTSTRAP_ENABLED:false}

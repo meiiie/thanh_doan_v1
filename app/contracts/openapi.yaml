@@ -1,0 +1,371 @@
+openapi: 3.1.0
+info:
+  title: Hệ thống điều hành chiến dịch Thành đoàn Hải Phòng
+  version: 0.5.0-local
+  description: Contract local cho toàn bộ luồng phân công → tự chấm → trả/bổ sung → vòng 1 → giải trình → vòng 2 → bốn mắt → snapshot/export.
+servers:
+  - url: https://127.0.0.1:4319
+    description: Local TLS profile, chứng thư self-signed
+security:
+  - sessionCookie: []
+paths:
+  /api/auth/csrf:
+    get:
+      summary: Khởi tạo CSRF cookie cho SPA
+      security: []
+      responses:
+        '200': { description: CSRF token sẵn sàng }
+  /api/auth/login:
+    post:
+      summary: Đăng nhập và tạo phiên máy chủ
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginCommand' }
+      responses:
+        '200':
+          description: Đã xác thực
+          headers:
+            X-Session-Expires-At:
+              $ref: '#/components/headers/SessionExpiresAt'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+        '401': { $ref: '#/components/responses/Problem' }
+  /api/auth/me:
+    get:
+      summary: Danh tính và phạm vi của phiên hiện tại
+      responses:
+        '200':
+          description: Phiên hiện tại
+          headers:
+            X-Session-Expires-At:
+              $ref: '#/components/headers/SessionExpiresAt'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+        '401': { $ref: '#/components/responses/Problem' }
+  /api/auth/change-password:
+    post:
+      summary: Đổi mật khẩu, bắt buộc ở lần đăng nhập đầu tiên
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ChangePasswordCommand' }
+      responses:
+        '200':
+          description: Mật khẩu đã đổi; phiên hiện tại tiếp tục được sử dụng
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Session' }
+        '401': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+  /api/auth/logout:
+    post:
+      summary: Hủy phiên hiện tại
+      responses:
+        '200': { description: Đã hủy session và hết hạn cookie phiên/CSRF }
+  /api/campaigns/current/status:
+    get:
+      summary: Trạng thái readiness dựa trên dữ liệu thật
+      responses:
+        '200': { description: Trạng thái chiến dịch }
+        '401': { $ref: '#/components/responses/Problem' }
+  /api/scorecards/current:
+    get:
+      summary: Bảng điểm đã chuẩn hóa từ workbook khách hàng
+      description: Chỉ Superadmin hoặc Admin chiến dịch được đọc.
+      responses:
+        '200': { description: 27 hạng mục, 55 dòng chấm và thông tin truy xuất nguồn }
+        '403': { $ref: '#/components/responses/Problem' }
+  /api/assignments/current:
+    get:
+      summary: Bảng điều hành phân khối và thẩm định
+      description: Superadmin hoặc Admin chiến dịch; projection có tiến độ hồ sơ và người chấm.
+      responses:
+        '200': { description: Kế hoạch phân công theo 27 hạng mục }
+        '403': { $ref: '#/components/responses/Problem' }
+  /api/assignments/current/groups/{groupId}:
+    put:
+      summary: Lưu khối áp dụng, Tổ theo dõi và cán bộ của một hạng mục
+      parameters:
+        - { name: groupId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Đã lưu và ghi audit }
+        '409': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+  /api/assignments/current/bulk:
+    put:
+      summary: Áp dụng một phân công cho nhiều hạng mục đã chọn
+      responses:
+        '200': { description: Tất cả thay đổi và audit cùng thành công }
+        '409': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+  /api/assignments/current/release:
+    post:
+      summary: Ban hành snapshot phân công và mở tự chấm
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: Snapshot đã ban hành hoặc replay thành công }
+        '409': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+  /api/assignments/current/start-review:
+    post:
+      summary: Mở vòng 1 khi mọi công việc đã có hồ sơ
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: Vòng 1 đã mở hoặc replay thành công }
+        '422': { $ref: '#/components/responses/Problem' }
+  /api/assignments/current/publish-round-one:
+    post:
+      summary: Khóa điểm vòng 1 và mở thời gian giải trình khi tất cả case đã chấm
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: Đã chuyển ROUND_1 sang EXPLANATION và khóa revision hồ sơ }
+        '422': { $ref: '#/components/responses/Problem' }
+  /api/assignments/current/start-round-two:
+    post:
+      summary: Mở vòng 2 khi mọi trường hợp bị giảm điểm đã có giải trình
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: Mọi case hợp lệ đã vào hàng chờ vòng 2 }
+        '422': { $ref: '#/components/responses/Problem' }
+  /api/unit/tasks:
+    get:
+      summary: Bảng công việc theo đúng tổ chức và khối của phiên
+      responses:
+        '200': { description: Các dòng chấm thuộc snapshot đã ban hành }
+        '403': { $ref: '#/components/responses/Problem' }
+  /api/unit/tasks/{lineId}/draft:
+    put:
+      summary: Lưu điểm tự chấm, link minh chứng và báo cáo nháp
+      parameters:
+        - { name: lineId, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Bản nháp và audit đã lưu }
+        '409': { $ref: '#/components/responses/Problem' }
+  /api/unit/tasks/{lineId}/submit:
+    post:
+      summary: Gửi revision hồ sơ và tạo case thẩm định theo assignment
+      parameters:
+        - { name: lineId, in: path, required: true, schema: { type: string } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: Hồ sơ đã gửi hoặc replay thành công }
+        '403': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+  /api/unit/tasks/{lineId}/explanation:
+    post:
+      summary: Gửi revision giải trình và link bổ sung cho dòng bị giảm điểm vòng 1
+      parameters:
+        - { name: lineId, in: path, required: true, schema: { type: string } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: Revision giải trình append-only và audit đã ghi }
+        '409': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+  /api/reviewer/queue:
+    get:
+      summary: Hàng chờ khớp đồng thời Tổ và cán bộ của phiên
+      responses:
+        '200': { description: Case được phân công }
+        '403': { $ref: '#/components/responses/Problem' }
+  /api/reviewer/queue/{caseId}/round-one:
+    post:
+      summary: Ghi quyết định vòng 1, kiểm chứng và lý do giảm điểm
+      parameters:
+        - { name: caseId, in: path, required: true, schema: { type: string } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: Quyết định append-only và audit đã ghi }
+        '403': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+  /api/reviewer/queue/{caseId}/return:
+    post:
+      summary: Trả hồ sơ đang chờ vòng 1 cho đúng đơn vị, bắt buộc có lý do
+      parameters:
+        - { name: caseId, in: path, required: true, schema: { type: string } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: Hồ sơ chuyển RETURNED và case chờ revision nộp lại }
+        '403': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+  /api/reviewer/queue/{caseId}/round-two:
+    post:
+      summary: Ghi quyết định vòng 2 sau khi hiển thị điểm vòng 1 và giải trình cuối
+      parameters:
+        - { name: caseId, in: path, required: true, schema: { type: string } }
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: Quyết định vòng 2 append-only và audit đã ghi }
+        '403': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+  /api/results/current:
+    get:
+      summary: Đọc snapshot kết quả và tổng hợp theo đơn vị
+      responses:
+        '200': { description: Trạng thái bốn mắt, checksum và bảng tổng hợp đơn vị }
+        '403': { $ref: '#/components/responses/Problem' }
+  /api/results/current/prepare:
+    post:
+      summary: Lập snapshot bất biến từ toàn bộ quyết định vòng 2
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: Snapshot PENDING_APPROVAL với SHA-256 đã lưu }
+        '409': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+  /api/results/current/approve:
+    post:
+      summary: Người thứ hai duyệt snapshot; người lập bị chặn
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: Snapshot đã được duyệt bốn mắt }
+        '409': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+  /api/results/current/publish:
+    post:
+      summary: Công bố snapshot đã được duyệt và khóa kết quả cuối
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200': { description: Snapshot và chiến dịch đã chuyển PUBLISHED cùng transaction }
+        '409': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+  /api/results/current/export:
+    get:
+      summary: Xuất Excel ba sheet từ đúng snapshot bất biến đang hiển thị
+      responses:
+        '200':
+          description: Workbook tổng hợp, chi tiết và metadata/checksum
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: { type: string, format: binary }
+        '422': { $ref: '#/components/responses/Problem' }
+  /api/accounts:
+    get:
+      summary: Danh sách tài khoản
+      description: Chỉ Superadmin.
+      responses:
+        '200': { description: Danh sách tài khoản thật }
+        '403': { $ref: '#/components/responses/Problem' }
+    post:
+      summary: Tạo tài khoản và ghi audit cùng giao dịch
+      description: Chỉ Superadmin. Tài khoản mới buộc đổi mật khẩu.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateAccountCommand' }
+      responses:
+        '200': { description: Tài khoản đã tạo }
+        '403': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+  /api/organization-directory:
+    get:
+      summary: Danh mục khối tham chiếu, đơn vị và tổ theo dõi
+      description: Chỉ Superadmin. Đơn vị và tổ khởi tạo rỗng, không dùng dữ liệu giả.
+      responses:
+        '200': { description: Danh mục cơ cấu hiện hành }
+        '403': { $ref: '#/components/responses/Problem' }
+  /api/organization-directory/organizations:
+    post:
+      summary: Tạo đơn vị và audit trong cùng giao dịch
+      description: Chỉ Superadmin; khối phải tồn tại trong dữ liệu nguồn.
+      responses:
+        '200': { description: Đơn vị đã tạo }
+        '403': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+  /api/organization-directory/teams:
+    post:
+      summary: Tạo tổ theo dõi và audit trong cùng giao dịch
+      description: Chỉ Superadmin.
+      responses:
+        '200': { description: Tổ theo dõi đã tạo }
+        '403': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
+components:
+  schemas:
+    LoginCommand:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string, maxLength: 120 }
+        password: { type: string, format: password, maxLength: 72 }
+    ChangePasswordCommand:
+      type: object
+      required: [currentPassword, newPassword]
+      properties:
+        currentPassword: { type: string, format: password }
+        newPassword: { type: string, format: password, minLength: 15, maxLength: 72 }
+    Session:
+      type: object
+      required: [id, displayName, role, campaignIds, capabilities, passwordChangeRequired]
+      properties:
+        id: { type: string }
+        displayName: { type: string }
+        role:
+          type: string
+          enum: [SUPERADMIN, CAMPAIGN_ADMIN, REVIEWER, UNIT_MEMBER]
+        campaignIds:
+          type: array
+          items: { type: string }
+        capabilities:
+          type: array
+          items: { type: string }
+        organizationId: { type: [string, 'null'] }
+        teamId: { type: [string, 'null'] }
+        passwordChangeRequired: { type: boolean }
+    CreateAccountCommand:
+      type: object
+      required: [username, displayName, password, role]
+      properties:
+        username: { type: string, pattern: '^[a-z0-9][a-z0-9._-]{2,39}$' }
+        displayName: { type: string, minLength: 2, maxLength: 240 }
+        password: { type: string, format: password, minLength: 15, maxLength: 72 }
+        role:
+          type: string
+          enum: [SUPERADMIN, CAMPAIGN_ADMIN, REVIEWER, UNIT_MEMBER]
+        organizationId: { type: [string, 'null'] }
+        teamId: { type: [string, 'null'] }
+    Problem:
+      type: object
+      properties:
+        type: { type: string, format: uri }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        code: { type: string }
+  responses:
+    Problem:
+      description: Problem Details
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+  headers:
+    SessionExpiresAt:
+      description: Thời điểm hết hạn sớm nhất giữa idle timeout và tuổi thọ tuyệt đối của phiên.
+      schema: { type: string, format: date-time }
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: CAMPAIGN_SESSION
+      description: Session phía máy chủ; lệnh ghi đồng thời yêu cầu header X-XSRF-TOKEN.
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string, minLength: 1, maxLength: 120 }

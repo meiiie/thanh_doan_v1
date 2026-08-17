@@ -1,0 +1,53 @@
+spring:
+  application:
+    name: campaign-workflow
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+  datasource:
+    url: jdbc:h2:mem:campaign;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+  flyway:
+    enabled: true
+  jackson:
+    default-property-inclusion: non_null
+
+server:
+  port: 8081
+  shutdown: graceful
+  servlet:
+    session:
+      timeout: 30m
+      cookie:
+        name: CAMPAIGN_SESSION
+        http-only: true
+        same-site: strict
+  error:
+    include-message: never
+    include-binding-errors: never
+    include-stacktrace: never
+
+management:
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+logging:
+  pattern:
+    level: "%5p [correlationId:%X{correlationId:-none}]"
+
+app:
+  security:
+    session:
+      max-lifetime: 12h
+  bootstrap:
+    enabled: false
+    username: ${APP_BOOTSTRAP_USERNAME:superadmin}
+    password: ${APP_BOOTSTRAP_PASSWORD:}
+    display-name: ${APP_BOOTSTRAP_DISPLAY_NAME:Quản trị hệ thống}

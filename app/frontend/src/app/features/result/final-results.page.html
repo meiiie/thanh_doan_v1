@@ -1,0 +1,120 @@
+<section class="result-page">
+  @if (view(); as data) {
+    <header class="result-heading">
+      <div>
+        <p class="eyebrow">Kết quả cuối và đối soát</p>
+        <h1>{{ data.campaignName }}</h1>
+        <p>
+          Điểm trên trang này chỉ được đọc từ snapshot bất biến, không tính lại từ hồ sơ đang sửa.
+        </p>
+      </div>
+      <span class="phase">{{ phaseLabel(data.phase) }}</span>
+    </header>
+
+    @if (message()) {
+      <p class="result-message" role="status" aria-live="polite">{{ message() }}</p>
+    }
+
+    <section class="control-strip" aria-labelledby="result-state-title">
+      <div>
+        <small id="result-state-title">Trạng thái chốt</small>
+        <strong>{{ statusLabel(data.status) }}</strong>
+        <span>{{ data.completedRoundTwo }}/{{ data.expectedTasks }} dòng đã hoàn tất vòng 2</span>
+      </div>
+      <div class="control-actions">
+        @if (!data.resultId) {
+          <button
+            type="button"
+            [disabled]="!canPrepare(data) || busy()"
+            (click)="act('prepare', data)"
+          >
+            Lập snapshot kết quả
+          </button>
+        } @else if (data.status === 'PENDING_APPROVAL') {
+          <button
+            type="button"
+            [disabled]="isOwnSnapshot(data) || busy()"
+            [attr.aria-describedby]="isOwnSnapshot(data) ? 'four-eyes-note' : null"
+            (click)="act('approve', data)"
+          >
+            Duyệt kết quả
+          </button>
+        } @else if (data.status === 'APPROVED') {
+          <button type="button" [disabled]="busy()" (click)="act('publish', data)">
+            Công bố kết quả
+          </button>
+        }
+        @if (data.resultId) {
+          <button class="secondary" type="button" [disabled]="busy()" (click)="download(data)">
+            Tải Excel đối soát
+          </button>
+        }
+      </div>
+    </section>
+    @if (data.status === 'PENDING_APPROVAL' && isOwnSnapshot(data)) {
+      <p id="four-eyes-note" class="four-eyes" role="note">
+        Bạn là người lập snapshot. Một Admin hoặc Superadmin khác phải duyệt.
+      </p>
+    }
+
+    @if (data.resultId) {
+      <section class="snapshot-meta" aria-label="Dấu vết snapshot">
+        <div>
+          <small>Phiên</small><strong>{{ data.resultVersion }}</strong>
+        </div>
+        <div>
+          <small>Người lập</small><strong>{{ data.preparedBy }}</strong>
+        </div>
+        <div>
+          <small>Người duyệt</small><strong>{{ data.approvedBy || 'Chưa duyệt' }}</strong>
+        </div>
+        <div class="checksum">
+          <small>SHA-256</small><code>{{ data.checksum }}</code>
+        </div>
+      </section>
+
+      <div class="result-table-shell">
+        <div class="table-toolbar">
+          <strong>{{ data.units.length }} đơn vị</strong>
+          <span>Điểm cộng được giới hạn theo bảng điểm đã ban hành</span>
+        </div>
+        <div class="table-scroll" tabindex="0" aria-label="Bảng kết quả các đơn vị">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Đơn vị</th>
+                <th scope="col">Khối</th>
+                <th scope="col" class="number">Điểm chính</th>
+                <th scope="col" class="number">Điểm cộng thô</th>
+                <th scope="col" class="number">Điểm cộng tính</th>
+                <th scope="col" class="number">Tổng điểm</th>
+                <th scope="col" class="number">Tỷ lệ điểm chính</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (unit of data.units; track unit.organizationId) {
+                <tr>
+                  <td>
+                    <strong>{{ unit.organizationName }}</strong
+                    ><small>{{ unit.organizationCode }}</small>
+                  </td>
+                  <td>{{ unit.unitGroupCode }}</td>
+                  <td class="number">{{ unit.coreScore }}/{{ unit.applicableCoreMaximum }}</td>
+                  <td class="number">{{ unit.bonusRawScore }}</td>
+                  <td class="number">{{ unit.bonusCappedScore }}</td>
+                  <td class="number total">{{ unit.totalScore }}</td>
+                  <td class="number">{{ unit.completionRate | percent: '1.0-2' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    } @else {
+      <section class="empty-result">
+        <strong>Chưa có snapshot kết quả</strong>
+        <p>Snapshot chỉ được lập khi đủ {{ data.expectedTasks }} dòng hoàn tất vòng 2.</p>
+      </section>
+    }
+  }
+</section>

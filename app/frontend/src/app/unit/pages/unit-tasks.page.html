@@ -1,0 +1,181 @@
+<section class="work-page">
+  @if (view(); as data) {
+    <header>
+      <div>
+        <h1>Công việc được giao</h1>
+        <p>{{ data.organizationName }} · {{ data.unitGroupName }}</p>
+      </div>
+      <span class="phase">{{
+        data.phase === 'SELF_ASSESSMENT' ? 'Đang nhận hồ sơ' : data.phase
+      }}</span>
+    </header>
+    @if (message()) {
+      <p class="message" role="status">{{ message() }}</p>
+    }
+    @if (data.tasks.length) {
+      <div class="table-shell">
+        <div class="toolbar">
+          <strong>{{ data.tasks.length }} dòng cần thực hiện</strong
+          ><span>Nhập trực tiếp, lưu nháp hoặc gửi từng dòng</span>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th class="code">Mã</th>
+                <th>Nội dung</th>
+                <th class="score">Tự chấm</th>
+                <th class="evidence">Link minh chứng</th>
+                <th class="summary">Báo cáo ngắn</th>
+                <th class="state">Trạng thái</th>
+                <th class="actions">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (task of data.tasks; track task.lineId) {
+                <tr>
+                  <td class="code-cell">
+                    <strong>{{ task.lineCode }}</strong
+                    ><span>{{ task.groupCode }}</span>
+                  </td>
+                  <td class="content">
+                    <strong>{{ task.title }}</strong>
+                    @if (task.requirement !== task.title) {
+                      <p>{{ task.requirement }}</p>
+                    }
+                    <small>{{ task.reviewTeamName }} · Tối đa {{ task.maximumScore }} điểm</small>
+                    @if (task.status === 'RETURNED' && task.returnReason) {
+                      <p class="return-note">
+                        <strong>Yêu cầu bổ sung:</strong> {{ task.returnReason }}
+                      </p>
+                    }
+                    @if (task.roundOneScore !== null) {
+                      <p class="decision-note">
+                        <strong>Vòng 1: {{ task.roundOneScore }}/{{ task.maximumScore }}</strong>
+                        @if (task.roundOneReason) {
+                          · {{ task.roundOneReason }}
+                        }
+                      </p>
+                    }
+                    @if (task.roundTwoScore !== null) {
+                      <p class="decision-note final">
+                        <strong>Vòng 2: {{ task.roundTwoScore }}/{{ task.maximumScore }}</strong>
+                        @if (task.roundTwoReason) {
+                          · {{ task.roundTwoReason }}
+                        }
+                      </p>
+                    }
+                  </td>
+                  <td>
+                    <input
+                      type="number"
+                      min="0"
+                      [max]="task.maximumScore"
+                      step="0.25"
+                      [value]="draft(task).selfScore ?? ''"
+                      [disabled]="!editable(task)"
+                      (input)="setScore(task, $event)"
+                      [attr.aria-label]="'Điểm tự chấm ' + task.lineCode"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="url"
+                      [required]="task.evidenceRequired"
+                      [placeholder]="task.evidenceRequired ? 'https://…' : 'Không bắt buộc'"
+                      [value]="draft(task).evidenceUrl"
+                      [disabled]="!editable(task)"
+                      (input)="setEvidence(task, $event)"
+                      [attr.aria-label]="'Link minh chứng ' + task.lineCode"
+                    /><small>{{ task.evidenceHint }}</small>
+                  </td>
+                  <td>
+                    @if (canExplain(task) || task.explanationRevision > 0) {
+                      <textarea
+                        rows="3"
+                        placeholder="Nội dung giải trình"
+                        [value]="draft(task).explanationBody"
+                        [disabled]="!canExplain(task)"
+                        (input)="setExplanation(task, $event)"
+                        [attr.aria-label]="'Giải trình ' + task.lineCode"
+                      ></textarea>
+                      <input
+                        type="url"
+                        placeholder="Link minh chứng bổ sung"
+                        [value]="draft(task).explanationEvidenceUrl"
+                        [disabled]="!canExplain(task)"
+                        (input)="setExplanationEvidence(task, $event)"
+                        [attr.aria-label]="'Link bổ sung ' + task.lineCode"
+                      />
+                      @if (task.explanationRevision > 0) {
+                        <small>Giải trình phiên {{ task.explanationRevision }}</small>
+                      }
+                    } @else {
+                      <textarea
+                        rows="2"
+                        [required]="task.summaryRequired"
+                        [placeholder]="
+                          task.summaryRequired ? 'Nhập báo cáo ngắn' : 'Không bắt buộc'
+                        "
+                        [value]="draft(task).summary"
+                        [disabled]="!editable(task)"
+                        (input)="setSummary(task, $event)"
+                        [attr.aria-label]="'Báo cáo ' + task.lineCode"
+                      ></textarea>
+                    }
+                  </td>
+                  <td>
+                    <span
+                      class="status"
+                      [class.submitted]="
+                        task.status === 'SUBMITTED' || task.status === 'RESUBMITTED'
+                      "
+                      >{{ statusLabel(task.status) }}</span
+                    >
+                  </td>
+                  <td>
+                    <div class="row-actions">
+                      <button
+                        type="button"
+                        [disabled]="!editable(task) || busyLine() === task.lineId"
+                        (click)="save(task, false)"
+                      >
+                        Lưu</button
+                      ><button
+                        type="button"
+                        class="send"
+                        [disabled]="!editable(task) || busyLine() === task.lineId"
+                        (click)="save(task, true)"
+                      >
+                        Gửi
+                      </button>
+                      @if (canExplain(task)) {
+                        <button
+                          type="button"
+                          class="send"
+                          [disabled]="busyLine() === task.lineId"
+                          (click)="submitExplanation(task)"
+                        >
+                          Gửi giải trình
+                        </button>
+                      }
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    } @else {
+      <div class="empty">
+        <span aria-hidden="true">✓</span>
+        <h2>Chưa có hạng mục được ban hành</h2>
+        <p>
+          Khi Admin hoàn tất phân khối và ban hành, công việc đúng khối của đơn vị sẽ xuất hiện tại
+          đây.
+        </p>
+      </div>
+    }
+  }
+</section>

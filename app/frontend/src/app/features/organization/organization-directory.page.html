@@ -1,0 +1,100 @@
+<section class="directory-page">
+  <header>
+    <div>
+      <p class="eyebrow">Danh mục vận hành</p>
+      <h1>Cơ cấu đơn vị và tổ theo dõi</h1>
+      <p>
+        Chỉ nhập tên đã được xác nhận. Các con số theo khối là dữ liệu tham chiếu từ hồ sơ khách
+        hàng, không phải danh sách đơn vị giả.
+      </p>
+    </div>
+  </header>
+
+  @if (directory(); as data) {
+    <div class="reference-strip" aria-label="Số lượng đơn vị theo tài liệu">
+      @for (group of data.unitGroups; track group.code) {
+        <div>
+          <strong>{{ group.documentedUnitCount }}</strong
+          ><span>{{ group.name }}</span>
+        </div>
+      }
+    </div>
+
+    <div class="directory-grid">
+      <article>
+        <div class="section-heading">
+          <div>
+            <h2>Đơn vị</h2>
+            <span>{{ data.organizations.length }} đã khai báo</span>
+          </div>
+        </div>
+        <form (ngSubmit)="createOrganization()" aria-label="Thêm đơn vị">
+          <label
+            >Mã đơn vị<input name="organizationCode" [(ngModel)]="organizationCode" required
+          /></label>
+          <label class="wide"
+            >Tên chính thức<input name="organizationName" [(ngModel)]="organizationName" required
+          /></label>
+          <label
+            >Khối<select name="unitGroupCode" [(ngModel)]="unitGroupCode">
+              @for (group of data.unitGroups; track group.code) {
+                <option [value]="group.code">{{ group.name }}</option>
+              }
+            </select></label
+          >
+          <button
+            type="submit"
+            [disabled]="savingOrganization() || !organizationCode || !organizationName"
+          >
+            {{ savingOrganization() ? 'Đang lưu…' : 'Thêm đơn vị' }}
+          </button>
+        </form>
+        <div class="list" aria-label="Danh sách đơn vị">
+          @for (organization of data.organizations; track organization.id) {
+            <div class="list-row">
+              <span class="code">{{ organization.code }}</span>
+              <strong>{{ organization.name }}</strong>
+              <span>{{ organization.unitGroupName }}</span>
+            </div>
+          } @empty {
+            <p class="empty">Chưa nhập đơn vị. Hệ thống không tự sinh tên mẫu.</p>
+          }
+        </div>
+      </article>
+
+      <article>
+        <div class="section-heading">
+          <div>
+            <h2>Tổ theo dõi</h2>
+            <span>{{ data.teams.length }} đã khai báo</span>
+          </div>
+        </div>
+        <form class="team-form" (ngSubmit)="createTeam()" aria-label="Thêm tổ theo dõi">
+          <label>Mã tổ<input name="teamCode" [(ngModel)]="teamCode" required /></label>
+          <label class="wide"
+            >Tên tổ<input name="teamName" [(ngModel)]="teamName" required
+          /></label>
+          <button type="submit" [disabled]="savingTeam() || !teamCode || !teamName">
+            {{ savingTeam() ? 'Đang lưu…' : 'Thêm tổ' }}
+          </button>
+        </form>
+        <div class="list" aria-label="Danh sách tổ theo dõi">
+          @for (team of data.teams; track team.id) {
+            <div class="list-row team-row">
+              <span class="code">{{ team.code }}</span
+              ><strong>{{ team.name }}</strong>
+            </div>
+          } @empty {
+            <p class="empty">Chưa nhập tổ theo dõi. Cán bộ chỉ được gắn sau khi có tổ thật.</p>
+          }
+        </div>
+      </article>
+    </div>
+  } @else {
+    <p class="empty">Đang đọc cơ cấu tổ chức…</p>
+  }
+
+  @if (error()) {
+    <p class="error" role="alert">{{ error() }}</p>
+  }
+</section>

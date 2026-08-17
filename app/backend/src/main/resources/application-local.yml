@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    url: jdbc:h2:file:../../.tmp/campaign-local;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE
+    username: sa
+    password:
+
+server:
+  address: 127.0.0.1
+
+app:
+  bootstrap:
+    enabled: true
+  runtime:
+    persistence: local-file

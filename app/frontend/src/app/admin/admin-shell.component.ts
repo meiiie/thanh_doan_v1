@@ -58,13 +58,16 @@ const NAVIGATION: WorkspaceNavigation = {
   superadmin: [
     {
       items: [
-        { label: 'Vòng đời chiến dịch', route: '/superadmin/lifecycle', icon: 'overview' },
-        { label: 'Bảng điểm & phân công', route: '/superadmin/scorecards', icon: 'spreadsheet' },
-        { label: 'Kết quả & đối soát', route: '/superadmin/results', icon: 'check' },
+        { label: 'Tổng quan', route: '/superadmin/lifecycle', icon: 'overview' },
+        { label: 'Bảng Tổng', route: '/superadmin/scorecards', icon: 'spreadsheet' },
+        { label: 'Phiên bản', route: '/superadmin/versions', icon: 'versions' },
+        { label: 'Điều hành chấm', route: '/superadmin/review-control', icon: 'organization' },
+        { label: 'Kết quả & đối soát', route: '/superadmin/results', icon: 'results' },
+        { label: 'Tổ & cán bộ', route: '/superadmin/teams', icon: 'accounts' },
       ],
     },
     {
-      label: 'Quản trị truy cập',
+      label: 'Quản trị hệ thống',
       items: [
         { label: 'Cơ cấu tổ chức', route: '/superadmin/structure', icon: 'accounts' },
         { label: 'Tài khoản & quyền', route: '/superadmin/accounts', icon: 'accounts' },
@@ -74,25 +77,44 @@ const NAVIGATION: WorkspaceNavigation = {
   'campaign-admin': [
     {
       items: [
+        { label: 'Tổng quan', route: '/admin/lifecycle', icon: 'overview' },
         {
-          label: 'Bảng điểm & phân công',
+          label: 'Bảng Tổng',
           route: '/admin/scorecard-templates',
           icon: 'spreadsheet',
         },
-        { label: 'Vòng đời chiến dịch', route: '/admin/lifecycle', icon: 'overview' },
-        { label: 'Kết quả & đối soát', route: '/admin/results', icon: 'check' },
+        { label: 'Phiên bản', route: '/admin/versions', icon: 'versions' },
+        { label: 'Điều hành chấm', route: '/admin/review-control', icon: 'organization' },
+        { label: 'Kết quả & đối soát', route: '/admin/results', icon: 'results' },
+        { label: 'Tổ & cán bộ', route: '/admin/teams', icon: 'accounts' },
       ],
     },
   ],
-  unit: [{ items: [{ label: 'Việc cần thực hiện', route: '/unit/tasks', icon: 'overview' }] }],
-  reviewer: [{ items: [{ label: 'Hàng chờ thẩm định', route: '/reviewer/queue', icon: 'check' }] }],
+  unit: [
+    {
+      items: [
+        { label: 'Tự chấm', route: '/unit/tasks', icon: 'document' },
+        { label: 'Giải trình', route: '/unit/results', icon: 'results' },
+        { label: 'Kết quả cuối', route: '/unit/final', icon: 'campaign' },
+      ],
+    },
+  ],
+  reviewer: [
+    {
+      items: [
+        { label: 'Công việc chấm', route: '/reviewer/queue', icon: 'document' },
+        { label: 'Lịch sử chấm', route: '/reviewer/history', icon: 'versions' },
+        { label: 'Kết quả', route: '/reviewer/results', icon: 'results' },
+      ],
+    },
+  ],
 };
 
 const WORKSPACE_META = {
   superadmin: { label: 'Superadmin', scope: 'Toàn hệ thống', home: '/superadmin/lifecycle' },
   'campaign-admin': {
     label: 'Admin chiến dịch',
-    scope: 'TNTN Hè 2026',
+    scope: 'Phạm vi chiến dịch hiện hành',
     home: '/admin/scorecard-templates',
   },
   unit: { label: 'Đơn vị', scope: 'Công việc được giao', home: '/unit/tasks' },
@@ -103,7 +125,11 @@ const WORKSPACE_META = {
   selector: 'app-admin-shell',
   imports: [RouterOutlet, RouterLink, RouterLinkActive, AppIconComponent],
   templateUrl: './admin-shell.component.html',
-  styleUrl: './admin-shell.component.css',
+  styleUrls: [
+    './admin-shell-sidebar.css',
+    './admin-shell-frame.css',
+    './admin-shell-responsive.css',
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AdminShellComponent {
@@ -117,13 +143,14 @@ export class AdminShellComponent {
   protected readonly workspaceMeta = WORKSPACE_META[this.workspace];
   protected readonly navigation = NAVIGATION[this.workspace];
   protected readonly drawerOpen = signal(false);
+  protected readonly sidebarCollapsed = signal(
+    this.document.defaultView?.matchMedia('(min-width: 960px) and (max-width: 1279px)').matches ??
+      false,
+  );
   protected readonly profileOpen = signal(false);
-  protected readonly profileOrigin = signal<'sidebar' | 'topbar'>('sidebar');
   protected readonly loggingOut = signal(false);
   protected readonly refreshingSession = signal(false);
   protected readonly accountError = signal('');
-  protected readonly topbarTitle = signal('');
-  protected readonly topbarDetail = signal('');
   protected readonly initials = computed(() => {
     const parts = this.auth.account()?.displayName.trim().split(/\s+/) ?? [];
     return (
@@ -133,8 +160,8 @@ export class AdminShellComponent {
         .join('') || 'QT'
     );
   });
-  protected readonly canSwitchWorkspace = computed(
-    () => this.auth.account()?.role === 'SUPERADMIN',
+  protected readonly profileLabel = computed(() =>
+    this.workspace === 'campaign-admin' ? 'Hải Phòng' : this.auth.account()?.displayName,
   );
   protected readonly sessionTimeRemaining = computed(() => {
     const remaining = this.session.remainingSeconds() ?? 0;
@@ -144,25 +171,31 @@ export class AdminShellComponent {
   });
 
   constructor() {
-    this.updateRouteContext(this.router.url);
     this.router.events.pipe(takeUntilDestroyed()).subscribe((event) => {
-      if (event instanceof NavigationEnd) this.updateRouteContext(event.urlAfterRedirects);
+      if (event instanceof NavigationEnd) {
+        this.dismissTransientLayers();
+      }
     });
   }
 
   protected toggleDrawer(): void {
+    this.closeProfile();
     this.drawerOpen.update((open) => !open);
   }
   protected closeDrawer(): void {
     this.drawerOpen.set(false);
+    this.closeProfile();
+  }
+  protected toggleSidebar(): void {
+    this.closeProfile();
+    this.sidebarCollapsed.update((collapsed) => !collapsed);
   }
   protected focusMain(event: Event): void {
     event.preventDefault();
     this.document.getElementById('admin-main')?.focus();
   }
-  protected toggleProfile(origin: 'sidebar' | 'topbar'): void {
-    const shouldOpen = !this.profileOpen() || this.profileOrigin() !== origin;
-    this.profileOrigin.set(origin);
+  protected toggleProfile(): void {
+    const shouldOpen = !this.profileOpen();
     this.profileOpen.set(shouldOpen);
     this.accountError.set('');
     if (shouldOpen) {
@@ -172,6 +205,20 @@ export class AdminShellComponent {
 
   protected closeProfile(): void {
     this.profileOpen.set(false);
+  }
+
+  @HostListener('document:pointerdown', ['$event'])
+  protected closeProfileFromOutside(event: PointerEvent): void {
+    if (!this.profileOpen() || !(event.target instanceof Element)) return;
+    if (event.target.closest('#account-menu, [data-profile-sidebar]')) {
+      return;
+    }
+    this.closeProfile();
+  }
+
+  @HostListener('window:blur')
+  protected closeProfileWhenWindowLosesFocus(): void {
+    this.closeProfile();
   }
 
   protected async logout(): Promise<void> {
@@ -209,41 +256,19 @@ export class AdminShellComponent {
 
   @HostListener('document:keydown.escape')
   protected closeTransientLayers(): void {
+    if (this.profileOpen()) {
+      this.profileOpen.set(false);
+      this.document.querySelector<HTMLElement>('[data-profile-sidebar]')?.focus();
+      return;
+    }
     if (this.drawerOpen()) {
       this.drawerOpen.set(false);
       this.document.querySelector<HTMLElement>('[data-menu-trigger]')?.focus();
     }
-    if (this.profileOpen()) {
-      this.profileOpen.set(false);
-      const selector =
-        this.profileOrigin() === 'topbar' ? '[data-profile-topbar]' : '[data-profile-sidebar]';
-      this.document.querySelector<HTMLElement>(selector)?.focus();
-    }
   }
 
-  private updateRouteContext(url: string): void {
-    const path = url.split('?')[0];
-    if (path.includes('scorecard')) {
-      this.topbarTitle.set('Bảng điểm khối Đại học, Cao đẳng');
-      this.topbarDetail.set('Nguồn Excel đã đối soát · 55 dòng chấm');
-    } else if (path.includes('accounts')) {
-      this.topbarTitle.set('Tài khoản và quyền');
-      this.topbarDetail.set('Identity & Access · Server-authorized');
-    } else if (path.includes('structure')) {
-      this.topbarTitle.set('Cơ cấu tổ chức');
-      this.topbarDetail.set('Đơn vị và tổ theo dõi · Dữ liệu do Superadmin xác nhận');
-    } else if (path.includes('queue')) {
-      this.topbarTitle.set('Hàng chờ thẩm định');
-      this.topbarDetail.set('Theo đúng tổ và phân công');
-    } else if (path.includes('tasks')) {
-      this.topbarTitle.set('Việc cần thực hiện');
-      this.topbarDetail.set('Theo đúng đơn vị và khối');
-    } else if (path.includes('results')) {
-      this.topbarTitle.set('Kết quả và đối soát');
-      this.topbarDetail.set('Snapshot bất biến · Duyệt bốn mắt · Excel');
-    } else {
-      this.topbarTitle.set('Vòng đời chiến dịch');
-      this.topbarDetail.set('Trạng thái dữ liệu thật');
-    }
+  private dismissTransientLayers(): void {
+    this.drawerOpen.set(false);
+    this.profileOpen.set(false);
   }
 }

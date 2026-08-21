@@ -19,6 +19,7 @@ export default defineConfig({
     "out-tsc/**",
     "artifacts/**",
     "e2e/**",
+    "src/app/api/generated/**",
   ],
   jsPlugins: [
     { name: "anti-slop", specifier: "./tools/oxlint/anti-slop/index.ts" },

@@ -1,0 +1,434 @@
+@if (view(); as data) {
+  <section class="control-page">
+    <header class="control-header">
+      <div>
+        <h1>Chấm vòng {{ data.roundNumber }}</h1>
+        <p>
+          {{ data.expectedCases }} lượt cần chấm · {{ data.completedCases }} hoàn tất ·
+          {{ data.expectedCases - data.completedCases }} còn lại
+        </p>
+      </div>
+      <div class="header-actions">
+        <button
+          type="button"
+          class="button button--primary"
+          [disabled]="!data.canOpenExplanation || busy()"
+          [attr.title]="
+            data.canOpenExplanation
+              ? 'Khóa vòng 1 và mở giải trình cho các dòng bị giảm điểm'
+              : 'Chỉ mở giải trình khi mọi lượt vòng 1 đã hoàn tất và qua kiểm tra'
+          "
+          (click)="openExplanation()"
+        >
+          <app-icon name="campaign" /> Khóa vòng 1 & mở giải trình
+        </button>
+        <a class="button button--secondary" [routerLink]="resultRoute"
+          ><app-icon name="results" /> Xem báo cáo</a
+        >
+      </div>
+    </header>
+
+    @if (message()) {
+      <p class="control-message" role="status">{{ message() }}</p>
+    }
+
+    <section class="control-section" aria-labelledby="issues-title">
+      <h2 id="issues-title">1. Cần xử lý</h2>
+      <div class="issue-list">
+        <article>
+          <i class="warning" aria-hidden="true"></i
+          ><span>{{ data.pendingCases }} lượt đã gửi nhưng chưa chấm</span
+          ><strong>{{ data.pendingCases }}</strong>
+        </article>
+        <article>
+          <i class="warning" aria-hidden="true"></i
+          ><span>{{ data.missingSubmissions }} lượt đơn vị chưa gửi hồ sơ</span
+          ><strong>{{ data.missingSubmissions }}</strong>
+        </article>
+        <article>
+          <i class="danger" aria-hidden="true"></i
+          ><span>{{ data.reductionsWithoutReason }} dòng giảm điểm thiếu lý do</span
+          ><strong>{{ data.reductionsWithoutReason }}</strong>
+        </article>
+        <article>
+          <i class="warning" aria-hidden="true"></i
+          ><span>{{ data.assessorsWithPending }} cán bộ còn việc</span
+          ><strong>{{ data.assessorsWithPending }}</strong>
+        </article>
+        <article>
+          <i class="success" aria-hidden="true"></i
+          ><span>{{ data.outOfRangeCases }} điểm vượt khung</span
+          ><strong>{{ data.outOfRangeCases }}</strong>
+        </article>
+      </div>
+    </section>
+
+    <section class="control-section" aria-labelledby="criterion-progress-title">
+      <div class="section-heading">
+        <div>
+          <h2 id="criterion-progress-title">2. Theo tiêu chí</h2>
+          <p>Chọn một tiêu chí để xem hồ sơ, minh chứng và lịch sử chấm từng đơn vị.</p>
+        </div>
+      </div>
+      <div class="control-table" aria-label="Tiến độ theo tiêu chí">
+        <div class="control-table__head">
+          <span>Mã</span><span>Tiêu chí</span><span>Người chấm phụ trách</span><span>Cần chấm</span
+          ><span>Hoàn tất</span><span>Còn lại</span><span>Tỉ lệ</span><span>Trạng thái</span>
+        </div>
+        @for (item of data.criteria; track item.groupId) {
+          <button
+            type="button"
+            class="control-table__row"
+            [attr.aria-label]="'Mở hồ sơ tiêu chí ' + item.code"
+            [disabled]="detailLoading()"
+            (click)="openCriterion(item)"
+          >
+            <strong>{{ item.code }}</strong>
+            <span class="criterion-title">{{ item.title }}</span>
+            <span
+              ><strong>{{ item.assessorName }}</strong
+              ><small>{{ item.teamName }}</small></span
+            >
+            <span class="number">{{ item.expectedCases }}</span>
+            <span class="number">{{ item.completedCases }}</span>
+            <span class="number">{{ item.remainingCases }}</span>
+            <span class="rate"
+              ><i><b [style.width.%]="percent(item.completionRate)"></b></i
+              ><em>{{ percent(item.completionRate) }}%</em></span
+            >
+            <span class="state" [class.complete]="item.remainingCases === 0"
+              ><i aria-hidden="true"></i
+              >{{ item.remainingCases === 0 ? 'Hoàn tất' : 'Chưa hoàn tất' }}
+              <app-icon name="chevron" />
+            </span>
+          </button>
+        } @empty {
+          <div class="table-empty">
+            <span>Chưa có tiêu chí được phân công người chấm.</span>
+          </div>
+        }
+      </div>
+    </section>
+
+    <section class="control-section" aria-labelledby="assessor-progress-title">
+      <h2 id="assessor-progress-title">3. Theo cán bộ</h2>
+      <div class="assessor-table" role="table" aria-label="Tiến độ theo cán bộ" tabindex="0">
+        <div class="assessor-table__head" role="row">
+          <span role="columnheader">#</span><span role="columnheader">Cán bộ chấm</span
+          ><span role="columnheader">Phụ trách</span><span role="columnheader">Cần chấm</span
+          ><span role="columnheader">Hoàn tất</span><span role="columnheader">Còn lại</span
+          ><span role="columnheader">Tỉ lệ hoàn thành</span>
+        </div>
+        @for (item of visibleAssessors(); track item.assessorId; let index = $index) {
+          <div class="assessor-table__row" role="row">
+            <span role="cell">{{ index + 1 }}</span>
+            <span role="cell" class="assessor-name"
+              ><i aria-hidden="true">{{ item.assessorName.slice(0, 1) }}</i
+              ><strong>{{ item.assessorName }}</strong
+              ><small>{{ item.teamName }}</small></span
+            >
+            <span role="cell">{{ item.assignedCriteria }} tiêu chí</span>
+            <span role="cell" class="number">{{ item.expectedCases }}</span>
+            <span role="cell" class="number">{{ item.completedCases }}</span>
+            <span role="cell" class="number">{{ item.remainingCases }}</span>
+            <span role="cell" class="rate"
+              ><i><b [style.width.%]="percent(item.completionRate)"></b></i
+              ><em>{{ percent(item.completionRate) }}%</em></span
+            >
+          </div>
+        } @empty {
+          <div class="table-empty" role="row">
+            <span role="cell">Chưa có cán bộ được phân công.</span>
+          </div>
+        }
+      </div>
+      @if (data.assessors.length > 5) {
+        <button
+          type="button"
+          class="show-all"
+          [attr.aria-expanded]="showAllAssessors()"
+          (click)="showAllAssessors.update((value) => !value)"
+        >
+          {{ showAllAssessors() ? 'Thu gọn' : 'Xem tất cả cán bộ (' + data.assessors.length + ')' }}
+          <app-icon name="chevron-down" />
+        </button>
+      }
+    </section>
+  </section>
+
+  @if (detailLoading() && !criterionCases()) {
+    <aside class="dossier-drawer dossier-drawer--loading" aria-live="polite">
+      <span class="loading-mark" aria-hidden="true"></span>
+      <strong>Đang đọc hồ sơ…</strong>
+    </aside>
+  }
+
+  @if (criterionCases(); as detail) {
+    <button
+      type="button"
+      class="dossier-scrim"
+      aria-label="Đóng hồ sơ tiêu chí"
+      (click)="closeCriterion()"
+    ></button>
+    <aside
+      class="dossier-drawer"
+      role="dialog"
+      aria-modal="false"
+      [attr.aria-labelledby]="'dossier-title-' + detail.groupId"
+    >
+      <header class="dossier-header">
+        <div>
+          <span>Hồ sơ tiêu chí · Vòng {{ detail.roundNumber }}</span>
+          <h2 [id]="'dossier-title-' + detail.groupId">{{ detail.code }} · {{ detail.title }}</h2>
+          <p>
+            {{ detail.submittedCases }}/{{ detail.expectedCases }} đã gửi ·
+            {{ detail.completedCases }} đã chấm
+          </p>
+        </div>
+        <button type="button" class="icon-button" aria-label="Đóng" (click)="closeCriterion()">
+          <app-icon name="close" />
+        </button>
+      </header>
+
+      <div class="dossier-workbench">
+        <section class="case-rail" aria-label="Danh sách hồ sơ đơn vị">
+          <label class="case-search"
+            ><app-icon name="search" /><span class="sr-only">Tìm đơn vị hoặc dòng chấm</span
+            ><input
+              type="search"
+              placeholder="Tìm đơn vị, dòng chấm"
+              [value]="caseSearch()"
+              (input)="setCaseSearch($event)"
+          /></label>
+          <div class="case-filters" aria-label="Lọc trạng thái">
+            <button
+              type="button"
+              [class.active]="caseFilter() === 'all'"
+              (click)="setCaseFilter('all')"
+            >
+              Tất cả
+            </button>
+            <button
+              type="button"
+              [class.active]="caseFilter() === 'missing'"
+              (click)="setCaseFilter('missing')"
+            >
+              Chưa gửi
+            </button>
+            <button
+              type="button"
+              [class.active]="caseFilter() === 'pending'"
+              (click)="setCaseFilter('pending')"
+            >
+              Chờ chấm
+            </button>
+            <button
+              type="button"
+              [class.active]="caseFilter() === 'completed'"
+              (click)="setCaseFilter('completed')"
+            >
+              Đã chấm
+            </button>
+            <button
+              type="button"
+              [class.active]="caseFilter() === 'reduced'"
+              (click)="setCaseFilter('reduced')"
+            >
+              Giảm điểm
+            </button>
+          </div>
+          <div class="case-list">
+            @for (item of filteredCases(); track caseKey(item)) {
+              <button
+                type="button"
+                class="case-row"
+                [class.active]="selectedCase() && caseKey(item) === caseKey(selectedCase()!)"
+                (click)="selectCase(item)"
+              >
+                <span
+                  ><strong>{{ item.organizationName }}</strong
+                  ><small>{{ item.lineCode }} · {{ item.lineTitle }}</small></span
+                >
+                <em
+                  [class.complete]="item.reviewStatus === 'COMPLETED'"
+                  [class.missing]="item.reviewStatus === 'NOT_SUBMITTED'"
+                  >{{ statusLabel(item) }}</em
+                >
+              </button>
+            } @empty {
+              <div class="case-list__empty">Không có hồ sơ khớp bộ lọc.</div>
+            }
+          </div>
+        </section>
+
+        @if (selectedCase(); as item) {
+          <article class="case-detail">
+            <header class="case-detail__header">
+              <div>
+                <span>{{ item.unitGroupCode }} · {{ item.lineCode }}</span>
+                <h3>{{ item.organizationName }}</h3>
+                <p>{{ item.lineTitle }}</p>
+              </div>
+              <span
+                class="status-pill"
+                [class.complete]="item.reviewStatus === 'COMPLETED'"
+                [class.missing]="item.reviewStatus === 'NOT_SUBMITTED'"
+                >{{ statusLabel(item) }}</span
+              >
+            </header>
+
+            @if (item.selfScore !== null) {
+              <section class="score-comparison" aria-label="Đối chiếu điểm">
+                <div>
+                  <span>Tự chấm</span><strong>{{ item.selfScore }}</strong
+                  ><small>điểm</small>
+                </div>
+                <app-icon name="arrow" />
+                <div>
+                  <span>Thẩm định vòng {{ item.roundNumber }}</span
+                  ><strong>{{ item.awardedScore ?? '—' }}</strong
+                  ><small>/ {{ item.maximumScore }}</small>
+                </div>
+                @if (isReduced(item)) {
+                  <em>Giảm {{ item.selfScore - item.awardedScore! }} điểm</em>
+                }
+              </section>
+            }
+
+            <section class="detail-section">
+              <div class="detail-section__title">
+                <h4>Hồ sơ đơn vị</h4>
+                @if (item.submissionRevision > 0) {
+                  <span>Phiên {{ item.submissionRevision }}</span>
+                }
+              </div>
+              @if (item.selfScore === null) {
+                <div class="detail-empty">
+                  <app-icon name="document" />
+                  <strong>Đơn vị chưa gửi hồ sơ</strong>
+                  <p>Chưa có điểm tự chấm, mô tả hoặc liên kết minh chứng để đối chiếu.</p>
+                </div>
+              } @else {
+                <p>{{ item.summary || 'Đơn vị chưa nhập mô tả.' }}</p>
+                @if (item.evidenceUrl) {
+                  <a
+                    class="evidence-link"
+                    [href]="item.evidenceUrl"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <app-icon name="document" />
+                    <span
+                      ><strong>Mở minh chứng</strong
+                      ><small>{{ evidenceHost(item.evidenceUrl) }}</small></span
+                    >
+                    <app-icon name="arrow" />
+                  </a>
+                } @else {
+                  <p class="muted-note">Hồ sơ này không có liên kết minh chứng.</p>
+                }
+              }
+            </section>
+
+            <section class="detail-section">
+              <div class="detail-section__title">
+                <h4>Quyết định hiện tại</h4>
+                <span>{{ item.teamName }}</span>
+              </div>
+              <dl class="decision-meta">
+                <div>
+                  <dt>Người được giao</dt>
+                  <dd>{{ item.assessorName }}</dd>
+                </div>
+                <div>
+                  <dt>Người chốt</dt>
+                  <dd>{{ item.decidedByName || 'Chưa có' }}</dd>
+                </div>
+                <div>
+                  <dt>Thời điểm</dt>
+                  <dd>{{ item.decidedAt ? (item.decidedAt | date: 'dd/MM/yyyy HH:mm') : '—' }}</dd>
+                </div>
+                <div>
+                  <dt>Đã kiểm tra minh chứng</dt>
+                  <dd>{{ item.evidenceChecked ? 'Có' : 'Chưa' }}</dd>
+                </div>
+              </dl>
+              @if (item.awardedScore !== null) {
+                <p class="decision-reason">
+                  <strong>Lý do / nhận xét</strong>{{ item.reason || 'Không điều chỉnh điểm.' }}
+                </p>
+              } @else {
+                <p class="muted-note">Cán bộ chưa ghi quyết định cho lượt chấm này.</p>
+              }
+            </section>
+
+            @if (
+              item.roundOneScore !== null ||
+              item.explanationRevision > 0 ||
+              item.roundTwoScore !== null
+            ) {
+              <section class="detail-section history-section">
+                <h4>Lịch sử xử lý</h4>
+                @if (item.roundOneScore !== null) {
+                  <article>
+                    <i aria-hidden="true"></i>
+                    <div>
+                      <strong>Thẩm định vòng 1 · {{ item.roundOneScore }} điểm</strong>
+                      <small
+                        >{{ item.roundOneDecidedByName }} ·
+                        {{ item.roundOneDecidedAt | date: 'dd/MM/yyyy HH:mm' }}</small
+                      >
+                      <p>{{ item.roundOneReason || 'Không điều chỉnh điểm.' }}</p>
+                    </div>
+                  </article>
+                }
+                @if (item.explanationRevision > 0) {
+                  <article>
+                    <i aria-hidden="true"></i>
+                    <div>
+                      <strong>Giải trình phiên {{ item.explanationRevision }}</strong>
+                      <p>{{ item.explanationBody }}</p>
+                      @if (item.explanationEvidenceUrl) {
+                        <a
+                          [href]="item.explanationEvidenceUrl"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          >Mở minh chứng bổ sung <app-icon name="arrow"
+                        /></a>
+                      }
+                    </div>
+                  </article>
+                }
+                @if (item.roundTwoScore !== null) {
+                  <article>
+                    <i aria-hidden="true"></i>
+                    <div>
+                      <strong>Thẩm định vòng 2 · {{ item.roundTwoScore }} điểm</strong>
+                      <small
+                        >{{ item.roundTwoDecidedByName }} ·
+                        {{ item.roundTwoDecidedAt | date: 'dd/MM/yyyy HH:mm' }}</small
+                      >
+                      <p>{{ item.roundTwoReason || 'Không điều chỉnh điểm.' }}</p>
+                    </div>
+                  </article>
+                }
+              </section>
+            }
+
+            <footer class="read-only-note">
+              <app-icon name="lock" />
+              <span
+                ><strong>Chế độ giám sát</strong>Admin và Superadmin xem để đối soát; chỉ cán bộ
+                được giao mới có quyền ghi quyết định.</span
+              >
+            </footer>
+          </article>
+        } @else {
+          <div class="case-detail case-detail--empty">
+            <app-icon name="document" /><strong>Không có hồ sơ trong phạm vi này</strong>
+          </div>
+        }
+      </div>
+    </aside>
+  }
+}

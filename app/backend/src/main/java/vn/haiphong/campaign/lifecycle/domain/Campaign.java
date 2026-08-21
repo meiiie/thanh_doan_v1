@@ -15,7 +15,7 @@ public record Campaign(
         return move(CampaignPhase.SELF_ASSESSMENT, CampaignPhase.ROUND_1, "SELF_ASSESSMENT_NOT_OPEN");
     }
 
-    public Campaign publishRoundOne() {
+    public Campaign openExplanation() {
         return move(CampaignPhase.ROUND_1, CampaignPhase.EXPLANATION, "ROUND_ONE_NOT_ACTIVE");
     }
 

@@ -9,8 +9,16 @@ tmp/
 **/node_modules/
 **/dist/
 **/.angular/
+app/frontend/artifacts/
+lab/audits/**/*.png
+lab/brand/concepts/
+lab/generated/
+lab/mockups/
 backups/
 *.log
+**/__pycache__/
+*.py[cod]
+/validation-only
 
 # Dữ liệu nhạy cảm và đầu ra sinh ra — không đưa lên Git
 outputs/

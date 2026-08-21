@@ -1,6 +1,7 @@
 package vn.haiphong.campaign.access;
 
 import java.time.OffsetDateTime;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -41,6 +42,40 @@ public class AccountRepository {
         return result.stream().findFirst();
     }
 
+    public Optional<SessionAccount> sessionAccountById(String accountId) {
+        return jdbc.query(
+                "select a.id, a.display_name, a.role, a.organization_id, a.team_id, " +
+                        "a.password_change_required, s.campaign_id, c.capability " +
+                        "from app_account a " +
+                        "left join account_campaign_scope s on s.account_id = a.id " +
+                        "left join account_capability c on c.account_id = a.id " +
+                        "where a.id = ? and a.enabled = true",
+                resultSet -> {
+                    if (!resultSet.next()) return Optional.empty();
+                    String id = resultSet.getString("id");
+                    String displayName = resultSet.getString("display_name");
+                    ActorRole role = ActorRole.valueOf(resultSet.getString("role"));
+                    String organizationId = resultSet.getString("organization_id");
+                    String teamId = resultSet.getString("team_id");
+                    boolean passwordChangeRequired = resultSet.getBoolean("password_change_required");
+                    Set<String> campaignIds = new LinkedHashSet<>();
+                    Set<String> capabilities = new LinkedHashSet<>();
+                    do {
+                        String campaignId = resultSet.getString("campaign_id");
+                        String capability = resultSet.getString("capability");
+                        if (campaignId != null) campaignIds.add(campaignId);
+                        if (capability != null) capabilities.add(capability);
+                    } while (resultSet.next());
+                    Actor actor = new Actor(
+                            id, displayName, role, Set.copyOf(campaignIds), Set.copyOf(capabilities),
+                            organizationId, teamId
+                    );
+                    return Optional.of(new SessionAccount(actor, passwordChangeRequired));
+                },
+                accountId
+        );
+    }
+
     public Optional<Actor> actorById(String accountId) {
         List<Actor> actors = jdbc.query(
                 "select id, display_name, role, organization_id, team_id from app_account where id = ? and enabled = true",
@@ -60,7 +95,9 @@ public class AccountRepository {
 
     public List<AccountView> all() {
         return jdbc.query(
-                "select id, username, display_name, role, organization_id, team_id, enabled, password_change_required, created_at " +
+                "select id, username, display_name, role, organization_id, team_id, enabled, " +
+                        "password_change_required, created_at, source_file_name, source_sha256, " +
+                        "source_sheet_name, source_row " +
                         "from app_account order by role, display_name",
                 (rs, row) -> new AccountView(
                         rs.getString("id"), rs.getString("username"), rs.getString("display_name"),
@@ -68,6 +105,8 @@ public class AccountRepository {
                         rs.getString("team_id"), rs.getBoolean("enabled"),
                         rs.getBoolean("password_change_required"),
                         rs.getObject("created_at", OffsetDateTime.class),
+                        rs.getString("source_file_name"), rs.getString("source_sha256"),
+                        rs.getString("source_sheet_name"), rs.getObject("source_row", Integer.class),
                         campaignScopes(rs.getString("id")), capabilities(rs.getString("id"))
                 )
         );
@@ -94,6 +133,11 @@ public class AccountRepository {
         return count != null && count > 0;
     }
 
+    public void setEnabled(String accountId, boolean enabled) {
+        int changed = jdbc.update("update app_account set enabled = ? where id = ?", enabled, accountId);
+        if (changed != 1) throw new IllegalStateException("Account disappeared during status update");
+    }
+
     public void insert(
             String id,
             String username,
@@ -106,14 +150,21 @@ public class AccountRepository {
             OffsetDateTime createdAt,
             String createdBy,
             Set<String> campaignIds,
-            Set<String> capabilities
+            Set<String> capabilities,
+            String sourceFileName,
+            String sourceSha256,
+            String sourceSheetName,
+            Integer sourceRow
     ) {
         jdbc.update(
                 "insert into app_account " +
-                        "(id, username, display_name, password_hash, role, organization_id, team_id, enabled, password_change_required, created_at, created_by) " +
-                        "values (?, ?, ?, ?, ?, ?, ?, true, ?, ?, ?)",
+                        "(id, username, display_name, password_hash, role, organization_id, team_id, enabled, " +
+                        "password_change_required, created_at, created_by, source_file_name, source_sha256, " +
+                        "source_sheet_name, source_row) " +
+                        "values (?, ?, ?, ?, ?, ?, ?, true, ?, ?, ?, ?, ?, ?, ?)",
                 id, username, displayName, passwordHash, role.name(), blankToNull(organizationId),
-                blankToNull(teamId), passwordChangeRequired, createdAt, createdBy
+                blankToNull(teamId), passwordChangeRequired, createdAt, createdBy,
+                sourceFileName, sourceSha256, sourceSheetName, sourceRow
         );
         campaignIds.forEach(campaignId -> jdbc.update(
                 "insert into account_campaign_scope (account_id, campaign_id) values (?, ?)", id, campaignId
@@ -148,6 +199,18 @@ public class AccountRepository {
         );
     }
 
+    public void accountStatusAudit(OffsetDateTime occurredAt, String actorId, String accountId, boolean enabled) {
+        jdbc.update(
+                "insert into audit_record " +
+                        "(occurred_at, actor_id, action, aggregate_type, aggregate_id, from_state, to_state, " +
+                        "reason, correlation_id, aggregate_version) " +
+                        "values (?, ?, ?, 'Account', ?, ?, ?, null, ?, 0)",
+                occurredAt, actorId, enabled ? "UNLOCK_ACCOUNT" : "LOCK_ACCOUNT", accountId,
+                enabled ? "LOCKED" : "ACTIVE", enabled ? "ACTIVE" : "LOCKED",
+                java.util.UUID.randomUUID().toString()
+        );
+    }
+
     private Set<String> campaignScopes(String accountId) {
         return Set.copyOf(jdbc.queryForList(
                 "select campaign_id from account_campaign_scope where account_id = ?", String.class, accountId
@@ -168,6 +231,8 @@ public class AccountRepository {
             String id, String username, String passwordHash, boolean enabled, boolean passwordChangeRequired
     ) {}
 
+    public record SessionAccount(Actor actor, boolean passwordChangeRequired) {}
+
     public record AccountView(
             String id,
             String username,
@@ -178,6 +243,10 @@ public class AccountRepository {
             boolean enabled,
             boolean passwordChangeRequired,
             OffsetDateTime createdAt,
+            String sourceFileName,
+            String sourceSha256,
+            String sourceSheetName,
+            Integer sourceRow,
             Set<String> campaignIds,
             Set<String> capabilities
     ) {}

@@ -1,4 +1,4 @@
-# Dấu Xanh Hải Phòng
+# Neko Đoàn
 
 **Nền tảng nội bộ điều hành chiến dịch thanh niên của Thành đoàn Hải Phòng.**
 
@@ -18,6 +18,17 @@ The executable vertical slice now covers the complete local scoring lifecycle:
 
 Every business transition is authorized on the server and recorded in the same database transaction. Final result snapshots preserve the accepted values, reviewer identity, revisions and SHA-256 digest; later source changes cannot mutate an approved snapshot.
 
+## Local role walkthrough
+
+Start the secure local stack, then provision isolated UAT actors:
+
+```powershell
+.\ops\secure-local.ps1 -Start -Port 4319
+.\ops\provision-local-uat-accounts.ps1
+```
+
+The generated manifest at `.tmp/local-uat-accounts.json` lists the Superadmin password file and the random local passwords/routes for Campaign Admin, Reviewer and Unit. It is ignored by Git and must never be promoted as production seed. Module status and the authentication closure record live in `../lab/modules/`.
+
 Runtime seed contains only customer-backed campaign/scorecard/unit-group reference data. Organizations, people, scores, evidence and decisions start empty.
 
 ## Fast local development
@@ -30,6 +41,7 @@ From the workspace root:
 ```
 
 The UI is then available at `http://127.0.0.1:4317/`. Local credentials are generated under `.tmp/` and are not source data.
+Port `4317` is the developer hot-reload surface and uses `.tmp/local-superadmin.password`. The isolated `4319` stack is the secure PostgreSQL/TLS release-candidate rehearsal and uses `.tmp/secure-local-superadmin.password`. They are two runtime modes of one codebase, not interchangeable user environments.
 
 ## Production-like local composition
 
@@ -40,7 +52,7 @@ docker compose up --build -d
 docker compose ps
 ```
 
-Open `http://127.0.0.1:4318/`. This path exercises the production Angular build, Nginx reverse proxy, Spring `prod` profile, Flyway and PostgreSQL. See `ops/RUNBOOK.md` before any real deployment.
+Open `http://127.0.0.1:4318/`. This path exercises the production Angular build, Nginx reverse proxy, Spring `prod` profile, Flyway and PostgreSQL. See `../ops/RUNBOOK.md` and `../ops/LOCAL_READINESS_2026-08-20.md` before any real deployment.
 
 For the secure local acceptance stack, run:
 

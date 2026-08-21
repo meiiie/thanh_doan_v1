@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 840 256" role="img" aria-labelledby="title desc">
+  <title id="title">Neko Đoàn</title>
+  <desc id="desc">Biểu tượng Neko Peek đi cùng tên sản phẩm Neko Đoàn và mô tả nền tảng điều hành chiến dịch thanh niên.</desc>
+  <g transform="translate(8 8) scale(.94)">
+    <path fill="#2A2928" d="M28 148C20 104 43 70 82 57c38-13 91-10 125 16 28 22 37 60 25 94-14 42-53 62-105 61-54-1-91-30-99-80Z"/>
+    <path fill="#F5F0E6" d="M61 133c-7-22-6-53 1-77 5-18 18-25 34-15 21-11 49-14 76-8 10-18 28-18 37 1 10 21 12 52 4 78-8 26-36 42-72 43-36 1-70-7-80-22Z"/>
+    <path fill="#454241" d="M31 136c31 23 72 38 117 41 33 2 61-7 84-29 3 24-7 47-29 62-23 16-59 22-100 16-43-6-71-31-77-63-2-10 0-19 5-27Z"/>
+    <ellipse cx="111" cy="103" rx="10" ry="15" fill="#2A2928"/>
+    <ellipse cx="157" cy="100" rx="10" ry="15" fill="#2A2928"/>
+  </g>
+  <circle cx="298" cy="79" r="7" fill="#BBDDF2"/>
+  <text x="322" y="118" fill="#2A2928" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="72" font-weight="700" letter-spacing="-3">Neko Đoàn</text>
+  <text x="298" y="166" fill="#666363" font-family="Inter, 'Segoe UI', system-ui, sans-serif" font-size="22" font-weight="500">Nền tảng điều hành chiến dịch thanh niên</text>
+</svg>

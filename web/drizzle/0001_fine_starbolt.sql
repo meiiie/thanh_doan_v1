@@ -1,1 +1,0 @@
-ALTER TABLE `assessments` ADD `applicable` integer DEFAULT true NOT NULL;

@@ -1,22 +1,29 @@
 openapi: 3.1.0
 info:
-  title: Hệ thống điều hành chiến dịch Thành đoàn Hải Phòng
-  version: 0.5.0-local
-  description: Contract local cho toàn bộ luồng phân công → tự chấm → trả/bổ sung → vòng 1 → giải trình → vòng 2 → bốn mắt → snapshot/export.
+  title: Neko Đoàn API
+  version: 0.6.0-local
+  description: Contract cho luồng phân công, tự chấm, thẩm định, giải trình và chốt kết quả.
 servers:
   - url: https://127.0.0.1:4319
-    description: Local TLS profile, chứng thư self-signed
+    description: Local TLS profile
 security:
   - sessionCookie: []
 paths:
   /api/auth/csrf:
     get:
+      operationId: getCsrfToken
       summary: Khởi tạo CSRF cookie cho SPA
       security: []
       responses:
-        '200': { description: CSRF token sẵn sàng }
+        '200':
+          description: CSRF token sẵn sàng
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CsrfToken' }
+        '400': { $ref: '#/components/responses/Problem' }
   /api/auth/login:
     post:
+      operationId: login
       summary: Đăng nhập và tạo phiên máy chủ
       security: []
       requestBody:
@@ -25,299 +32,463 @@ paths:
           application/json:
             schema: { $ref: '#/components/schemas/LoginCommand' }
       responses:
-        '200':
-          description: Đã xác thực
-          headers:
-            X-Session-Expires-At:
-              $ref: '#/components/headers/SessionExpiresAt'
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Session' }
+        '200': { $ref: '#/components/responses/Session' }
         '401': { $ref: '#/components/responses/Problem' }
   /api/auth/me:
     get:
+      operationId: getCurrentSession
       summary: Danh tính và phạm vi của phiên hiện tại
       responses:
-        '200':
-          description: Phiên hiện tại
-          headers:
-            X-Session-Expires-At:
-              $ref: '#/components/headers/SessionExpiresAt'
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Session' }
+        '200': { $ref: '#/components/responses/Session' }
         '401': { $ref: '#/components/responses/Problem' }
   /api/auth/change-password:
     post:
-      summary: Đổi mật khẩu, bắt buộc ở lần đăng nhập đầu tiên
+      operationId: changePassword
+      summary: Đổi mật khẩu bắt buộc ở lần đăng nhập đầu tiên
       requestBody:
         required: true
         content:
           application/json:
             schema: { $ref: '#/components/schemas/ChangePasswordCommand' }
       responses:
-        '200':
-          description: Mật khẩu đã đổi; phiên hiện tại tiếp tục được sử dụng
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Session' }
+        '200': { $ref: '#/components/responses/Session' }
         '401': { $ref: '#/components/responses/Problem' }
         '422': { $ref: '#/components/responses/Problem' }
   /api/auth/logout:
     post:
+      operationId: logout
       summary: Hủy phiên hiện tại
       responses:
-        '200': { description: Đã hủy session và hết hạn cookie phiên/CSRF }
+        '200': { description: Đã hủy session và hết hạn cookie phiên và CSRF }
+        '401': { $ref: '#/components/responses/Problem' }
   /api/campaigns/current/status:
     get:
-      summary: Trạng thái readiness dựa trên dữ liệu thật
+      operationId: getCurrentCampaignStatus
+      summary: Đọc trạng thái readiness từ dữ liệu hiện hành
       responses:
-        '200': { description: Trạng thái chiến dịch }
+        '200':
+          description: Trạng thái chiến dịch
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CampaignStatus' }
         '401': { $ref: '#/components/responses/Problem' }
   /api/scorecards/current:
     get:
-      summary: Bảng điểm đã chuẩn hóa từ workbook khách hàng
-      description: Chỉ Superadmin hoặc Admin chiến dịch được đọc.
+      operationId: getCurrentScorecard
+      summary: Đọc bảng điểm đã chuẩn hóa từ workbook nguồn
       responses:
-        '200': { description: 27 hạng mục, 55 dòng chấm và thông tin truy xuất nguồn }
+        '200':
+          description: Catalog bảng điểm và truy xuất nguồn
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ScorecardCatalog' }
         '403': { $ref: '#/components/responses/Problem' }
   /api/assignments/current:
     get:
-      summary: Bảng điều hành phân khối và thẩm định
-      description: Superadmin hoặc Admin chiến dịch; projection có tiến độ hồ sơ và người chấm.
+      operationId: getCurrentAssignments
+      summary: Đọc bảng phân khối và thẩm định
       responses:
-        '200': { description: Kế hoạch phân công theo 27 hạng mục }
+        '200': { $ref: '#/components/responses/AssignmentWorkbench' }
         '403': { $ref: '#/components/responses/Problem' }
   /api/assignments/current/groups/{groupId}:
     put:
-      summary: Lưu khối áp dụng, Tổ theo dõi và cán bộ của một hạng mục
+      operationId: saveGroupAssignment
+      summary: Lưu phân công một hạng mục
       parameters:
-        - { name: groupId, in: path, required: true, schema: { type: string } }
+        - $ref: '#/components/parameters/GroupId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SaveAssignmentCommand' }
       responses:
-        '200': { description: Đã lưu và ghi audit }
+        '200': { $ref: '#/components/responses/AssignmentWorkbench' }
         '409': { $ref: '#/components/responses/Problem' }
         '422': { $ref: '#/components/responses/Problem' }
   /api/assignments/current/bulk:
     put:
-      summary: Áp dụng một phân công cho nhiều hạng mục đã chọn
+      operationId: saveBulkAssignment
+      summary: Áp dụng một phân công cho nhiều hạng mục
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BulkAssignmentCommand' }
       responses:
-        '200': { description: Tất cả thay đổi và audit cùng thành công }
+        '200': { $ref: '#/components/responses/AssignmentWorkbench' }
         '409': { $ref: '#/components/responses/Problem' }
         '422': { $ref: '#/components/responses/Problem' }
   /api/assignments/current/release:
     post:
+      operationId: releaseAssignments
       summary: Ban hành snapshot phân công và mở tự chấm
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody: { $ref: '#/components/requestBodies/VersionCommand' }
       responses:
-        '200': { description: Snapshot đã ban hành hoặc replay thành công }
+        '200': { $ref: '#/components/responses/AssignmentWorkbench' }
         '409': { $ref: '#/components/responses/Problem' }
         '422': { $ref: '#/components/responses/Problem' }
   /api/assignments/current/start-review:
     post:
-      summary: Mở vòng 1 khi mọi công việc đã có hồ sơ
+      operationId: startRoundOne
+      summary: Mở vòng thẩm định thứ nhất
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody: { $ref: '#/components/requestBodies/VersionCommand' }
       responses:
-        '200': { description: Vòng 1 đã mở hoặc replay thành công }
+        '200': { $ref: '#/components/responses/AssignmentWorkbench' }
+        '409': { $ref: '#/components/responses/Problem' }
         '422': { $ref: '#/components/responses/Problem' }
-  /api/assignments/current/publish-round-one:
+  /api/assignments/current/open-explanation:
     post:
-      summary: Khóa điểm vòng 1 và mở thời gian giải trình khi tất cả case đã chấm
+      operationId: openExplanation
+      summary: Khóa vòng 1 và mở thời gian giải trình
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody: { $ref: '#/components/requestBodies/VersionCommand' }
       responses:
-        '200': { description: Đã chuyển ROUND_1 sang EXPLANATION và khóa revision hồ sơ }
+        '200': { $ref: '#/components/responses/AssignmentWorkbench' }
+        '409': { $ref: '#/components/responses/Problem' }
         '422': { $ref: '#/components/responses/Problem' }
   /api/assignments/current/start-round-two:
     post:
-      summary: Mở vòng 2 khi mọi trường hợp bị giảm điểm đã có giải trình
+      operationId: startRoundTwo
+      summary: Mở vòng thẩm định thứ hai
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody: { $ref: '#/components/requestBodies/VersionCommand' }
       responses:
-        '200': { description: Mọi case hợp lệ đã vào hàng chờ vòng 2 }
+        '200': { $ref: '#/components/responses/AssignmentWorkbench' }
+        '409': { $ref: '#/components/responses/Problem' }
         '422': { $ref: '#/components/responses/Problem' }
   /api/unit/tasks:
     get:
-      summary: Bảng công việc theo đúng tổ chức và khối của phiên
+      operationId: getUnitTasks
+      summary: Đọc công việc theo tổ chức và khối của phiên
       responses:
-        '200': { description: Các dòng chấm thuộc snapshot đã ban hành }
+        '200': { $ref: '#/components/responses/UnitTaskView' }
+        '403': { $ref: '#/components/responses/Problem' }
+  /api/unit/results/final:
+    get:
+      operationId: getUnitFinalResult
+      summary: Đọc kết quả cuối của đơn vị từ snapshot đã công bố
+      responses:
+        '200': { $ref: '#/components/responses/UnitFinalResult' }
         '403': { $ref: '#/components/responses/Problem' }
   /api/unit/tasks/{lineId}/draft:
     put:
-      summary: Lưu điểm tự chấm, link minh chứng và báo cáo nháp
+      operationId: saveUnitTaskDraft
+      summary: Lưu bản nháp tự chấm
       parameters:
-        - { name: lineId, in: path, required: true, schema: { type: string } }
+        - $ref: '#/components/parameters/LineId'
+      requestBody: { $ref: '#/components/requestBodies/SaveTaskCommand' }
       responses:
-        '200': { description: Bản nháp và audit đã lưu }
+        '200': { $ref: '#/components/responses/UnitTaskView' }
         '409': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
   /api/unit/tasks/{lineId}/submit:
     post:
-      summary: Gửi revision hồ sơ và tạo case thẩm định theo assignment
+      operationId: submitUnitTask
+      summary: Gửi revision hồ sơ để thẩm định
       parameters:
-        - { name: lineId, in: path, required: true, schema: { type: string } }
+        - $ref: '#/components/parameters/LineId'
         - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody: { $ref: '#/components/requestBodies/SaveTaskCommand' }
       responses:
-        '200': { description: Hồ sơ đã gửi hoặc replay thành công }
+        '200': { $ref: '#/components/responses/UnitTaskView' }
         '403': { $ref: '#/components/responses/Problem' }
+        '409': { $ref: '#/components/responses/Problem' }
         '422': { $ref: '#/components/responses/Problem' }
   /api/unit/tasks/{lineId}/explanation:
     post:
-      summary: Gửi revision giải trình và link bổ sung cho dòng bị giảm điểm vòng 1
+      operationId: submitExplanation
+      summary: Gửi revision giải trình cho dòng bị giảm điểm
       parameters:
-        - { name: lineId, in: path, required: true, schema: { type: string } }
+        - $ref: '#/components/parameters/LineId'
         - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ExplanationCommand' }
       responses:
-        '200': { description: Revision giải trình append-only và audit đã ghi }
+        '200': { $ref: '#/components/responses/UnitTaskView' }
+        '403': { $ref: '#/components/responses/Problem' }
         '409': { $ref: '#/components/responses/Problem' }
         '422': { $ref: '#/components/responses/Problem' }
   /api/reviewer/queue:
     get:
-      summary: Hàng chờ khớp đồng thời Tổ và cán bộ của phiên
+      operationId: getReviewQueue
+      summary: Đọc hàng chờ khớp Tổ và cán bộ của phiên
       responses:
-        '200': { description: Case được phân công }
+        '200': { $ref: '#/components/responses/ReviewQueue' }
         '403': { $ref: '#/components/responses/Problem' }
+  /api/admin/review-control:
+    get:
+      operationId: getReviewControl
+      summary: Đọc projection điều hành tiến độ chấm theo tiêu chí và cán bộ
+      responses:
+        '200': { $ref: '#/components/responses/ReviewControl' }
+        '403': { $ref: '#/components/responses/Problem' }
+  /api/admin/review-control/criteria/{groupId}/cases:
+    get:
+      operationId: getReviewControlCriterionCases
+      summary: Đọc hồ sơ, minh chứng và lịch sử chấm của một tiêu chí để giám sát
+      parameters:
+        - $ref: '#/components/parameters/GroupId'
+      responses:
+        '200': { $ref: '#/components/responses/ReviewControlCriterionCases' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
   /api/reviewer/queue/{caseId}/round-one:
     post:
-      summary: Ghi quyết định vòng 1, kiểm chứng và lý do giảm điểm
+      operationId: completeRoundOne
+      summary: Ghi quyết định thẩm định vòng 1
       parameters:
-        - { name: caseId, in: path, required: true, schema: { type: string } }
+        - $ref: '#/components/parameters/CaseId'
         - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody: { $ref: '#/components/requestBodies/ReviewDecisionCommand' }
       responses:
-        '200': { description: Quyết định append-only và audit đã ghi }
+        '200': { $ref: '#/components/responses/ReviewQueue' }
         '403': { $ref: '#/components/responses/Problem' }
         '409': { $ref: '#/components/responses/Problem' }
         '422': { $ref: '#/components/responses/Problem' }
   /api/reviewer/queue/{caseId}/return:
     post:
-      summary: Trả hồ sơ đang chờ vòng 1 cho đúng đơn vị, bắt buộc có lý do
+      operationId: returnSubmissionToUnit
+      summary: Trả hồ sơ vòng 1 cho đơn vị
       parameters:
-        - { name: caseId, in: path, required: true, schema: { type: string } }
+        - $ref: '#/components/parameters/CaseId'
         - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReturnSubmissionCommand' }
       responses:
-        '200': { description: Hồ sơ chuyển RETURNED và case chờ revision nộp lại }
+        '200': { $ref: '#/components/responses/ReviewQueue' }
         '403': { $ref: '#/components/responses/Problem' }
         '409': { $ref: '#/components/responses/Problem' }
         '422': { $ref: '#/components/responses/Problem' }
   /api/reviewer/queue/{caseId}/round-two:
     post:
-      summary: Ghi quyết định vòng 2 sau khi hiển thị điểm vòng 1 và giải trình cuối
+      operationId: completeRoundTwo
+      summary: Ghi quyết định thẩm định vòng 2
       parameters:
-        - { name: caseId, in: path, required: true, schema: { type: string } }
+        - $ref: '#/components/parameters/CaseId'
         - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody: { $ref: '#/components/requestBodies/ReviewDecisionCommand' }
       responses:
-        '200': { description: Quyết định vòng 2 append-only và audit đã ghi }
+        '200': { $ref: '#/components/responses/ReviewQueue' }
         '403': { $ref: '#/components/responses/Problem' }
         '409': { $ref: '#/components/responses/Problem' }
         '422': { $ref: '#/components/responses/Problem' }
   /api/results/current:
     get:
-      summary: Đọc snapshot kết quả và tổng hợp theo đơn vị
+      operationId: getCurrentResult
+      summary: Đọc snapshot kết quả hiện hành
       responses:
-        '200': { description: Trạng thái bốn mắt, checksum và bảng tổng hợp đơn vị }
+        '200': { $ref: '#/components/responses/FinalResult' }
         '403': { $ref: '#/components/responses/Problem' }
   /api/results/current/prepare:
     post:
-      summary: Lập snapshot bất biến từ toàn bộ quyết định vòng 2
+      operationId: prepareFinalResult
+      summary: Lập snapshot bất biến từ điểm vòng 1 và các dòng phải chấm lại ở vòng 2
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PrepareResultCommand' }
       responses:
-        '200': { description: Snapshot PENDING_APPROVAL với SHA-256 đã lưu }
+        '200': { $ref: '#/components/responses/FinalResult' }
         '409': { $ref: '#/components/responses/Problem' }
         '422': { $ref: '#/components/responses/Problem' }
   /api/results/current/approve:
     post:
-      summary: Người thứ hai duyệt snapshot; người lập bị chặn
+      operationId: approveFinalResult
+      summary: Người thứ hai duyệt snapshot
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ResultVersionCommand' }
       responses:
-        '200': { description: Snapshot đã được duyệt bốn mắt }
+        '200': { $ref: '#/components/responses/FinalResult' }
         '409': { $ref: '#/components/responses/Problem' }
         '422': { $ref: '#/components/responses/Problem' }
   /api/results/current/publish:
     post:
-      summary: Công bố snapshot đã được duyệt và khóa kết quả cuối
+      operationId: publishFinalResult
+      summary: Công bố snapshot đã được duyệt
       parameters:
         - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PublishResultCommand' }
       responses:
-        '200': { description: Snapshot và chiến dịch đã chuyển PUBLISHED cùng transaction }
+        '200': { $ref: '#/components/responses/FinalResult' }
         '409': { $ref: '#/components/responses/Problem' }
         '422': { $ref: '#/components/responses/Problem' }
   /api/results/current/export:
     get:
-      summary: Xuất Excel ba sheet từ đúng snapshot bất biến đang hiển thị
+      operationId: exportCurrentResult
+      summary: Xuất Excel từ snapshot đang hiển thị
       responses:
         '200':
-          description: Workbook tổng hợp, chi tiết và metadata/checksum
+          description: Workbook tổng hợp, chi tiết và metadata
           content:
             application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
               schema: { type: string, format: binary }
+        '403': { $ref: '#/components/responses/Problem' }
         '422': { $ref: '#/components/responses/Problem' }
   /api/accounts:
     get:
+      operationId: listAccounts
       summary: Danh sách tài khoản
-      description: Chỉ Superadmin.
       responses:
-        '200': { description: Danh sách tài khoản thật }
+        '200':
+          description: Tài khoản hiện hành
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Account' }
         '403': { $ref: '#/components/responses/Problem' }
     post:
-      summary: Tạo tài khoản và ghi audit cùng giao dịch
-      description: Chỉ Superadmin. Tài khoản mới buộc đổi mật khẩu.
+      operationId: createAccount
+      summary: Tạo tài khoản và audit cùng giao dịch
       requestBody:
         required: true
         content:
           application/json:
             schema: { $ref: '#/components/schemas/CreateAccountCommand' }
       responses:
-        '200': { description: Tài khoản đã tạo }
+        '200':
+          description: Tài khoản đã tạo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Account' }
         '403': { $ref: '#/components/responses/Problem' }
         '422': { $ref: '#/components/responses/Problem' }
   /api/organization-directory:
     get:
-      summary: Danh mục khối tham chiếu, đơn vị và tổ theo dõi
-      description: Chỉ Superadmin. Đơn vị và tổ khởi tạo rỗng, không dùng dữ liệu giả.
+      operationId: getOrganizationDirectory
+      summary: Đọc khối, đơn vị và tổ theo dõi
       responses:
-        '200': { description: Danh mục cơ cấu hiện hành }
+        '200':
+          description: Danh mục cơ cấu hiện hành
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrganizationDirectory' }
         '403': { $ref: '#/components/responses/Problem' }
+  /api/accounts/{accountId}/status:
+    patch:
+      operationId: setAccountStatus
+      summary: Khóa hoặc mở khóa tài khoản và ghi audit cùng giao dịch
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/SetAccountStatusCommand' }
+      responses:
+        '200':
+          description: Trạng thái tài khoản đã cập nhật
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Account' }
+        '403': { $ref: '#/components/responses/Problem' }
+        '422': { $ref: '#/components/responses/Problem' }
   /api/organization-directory/organizations:
     post:
-      summary: Tạo đơn vị và audit trong cùng giao dịch
-      description: Chỉ Superadmin; khối phải tồn tại trong dữ liệu nguồn.
+      operationId: createOrganization
+      summary: Tạo đơn vị và audit cùng giao dịch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateOrganizationCommand' }
       responses:
-        '200': { description: Đơn vị đã tạo }
+        '200':
+          description: Đơn vị đã tạo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Organization' }
         '403': { $ref: '#/components/responses/Problem' }
         '422': { $ref: '#/components/responses/Problem' }
   /api/organization-directory/teams:
     post:
-      summary: Tạo tổ theo dõi và audit trong cùng giao dịch
-      description: Chỉ Superadmin.
+      operationId: createReviewTeam
+      summary: Tạo tổ theo dõi và audit cùng giao dịch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateReviewTeamCommand' }
       responses:
-        '200': { description: Tổ theo dõi đã tạo }
+        '200':
+          description: Tổ theo dõi đã tạo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReviewTeam' }
         '403': { $ref: '#/components/responses/Problem' }
         '422': { $ref: '#/components/responses/Problem' }
 components:
   schemas:
+    CampaignPhase:
+      type: string
+      enum: [PREPARATION, SELF_ASSESSMENT, ROUND_1, EXPLANATION, ROUND_2, FINAL_REVIEW, PUBLISHED, CLOSED]
+    AccountRole:
+      type: string
+      enum: [SUPERADMIN, CAMPAIGN_ADMIN, REVIEWER, UNIT_MEMBER]
+    EvidencePolicy:
+      type: string
+      enum: [LINK, DOCUMENT, INTERNAL, GUIDED]
+    TaskStatus:
+      type: string
+      enum: [NOT_STARTED, DRAFT, SUBMITTED, RESUBMITTED, RETURNED, LOCKED]
+    ResultStatus:
+      type: string
+      enum: [PENDING_APPROVAL, APPROVED, PUBLISHED]
+    CsrfToken:
+      type: object
+      additionalProperties: false
+      required: [token]
+      properties:
+        token: { type: string }
     LoginCommand:
       type: object
+      additionalProperties: false
       required: [username, password]
       properties:
         username: { type: string, maxLength: 120 }
         password: { type: string, format: password, maxLength: 72 }
     ChangePasswordCommand:
       type: object
+      additionalProperties: false
       required: [currentPassword, newPassword]
       properties:
         currentPassword: { type: string, format: password }
         newPassword: { type: string, format: password, minLength: 15, maxLength: 72 }
     Session:
       type: object
-      required: [id, displayName, role, campaignIds, capabilities, passwordChangeRequired]
+      additionalProperties: false
+      required: [id, displayName, role, campaignIds, capabilities, organizationId, teamId, passwordChangeRequired]
       properties:
         id: { type: string }
         displayName: { type: string }
-        role:
-          type: string
-          enum: [SUPERADMIN, CAMPAIGN_ADMIN, REVIEWER, UNIT_MEMBER]
+        role: { $ref: '#/components/schemas/AccountRole' }
         campaignIds:
           type: array
           items: { type: string }
@@ -327,20 +498,736 @@ components:
         organizationId: { type: [string, 'null'] }
         teamId: { type: [string, 'null'] }
         passwordChangeRequired: { type: boolean }
+    ReadinessItem:
+      type: object
+      additionalProperties: false
+      required: [code, label, ready, detail]
+      properties:
+        code: { type: string }
+        label: { type: string }
+        ready: { type: boolean }
+        detail: { type: string }
+    CampaignStatus:
+      type: object
+      additionalProperties: false
+      required: [id, name, phase, version, scorecardStatus, scorecardGroups, scorecardLines, documentedUnitGroups, documentedUnits, activeAccounts, submissions, reviewCases, finalResults, readiness]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        phase: { $ref: '#/components/schemas/CampaignPhase' }
+        version: { type: integer }
+        scorecardStatus: { type: string }
+        scorecardGroups: { type: integer }
+        scorecardLines: { type: integer }
+        documentedUnitGroups: { type: integer }
+        documentedUnits: { type: integer }
+        activeAccounts: { type: integer }
+        submissions: { type: integer }
+        reviewCases: { type: integer }
+        finalResults: { type: integer }
+        readiness:
+          type: array
+          items: { $ref: '#/components/schemas/ReadinessItem' }
+    ScorecardSource:
+      type: object
+      additionalProperties: false
+      required: [fileName, sha256, receivedScope, importedAt]
+      properties:
+        fileName: { type: string }
+        sha256: { type: string }
+        receivedScope: { type: string }
+        importedAt: { type: string, format: date-time }
+    ScorecardPolicy:
+      type: object
+      additionalProperties: false
+      required: [coreMaximum, bonusRawMaximum, bonusCap, overallMaximum, groupCount, lineCount]
+      properties:
+        coreMaximum: { type: number }
+        bonusRawMaximum: { type: number }
+        bonusCap: { type: number }
+        overallMaximum: { type: number }
+        groupCount: { type: integer }
+        lineCount: { type: integer }
+    ScorecardUnitGroup:
+      type: object
+      additionalProperties: false
+      required: [code, name, documentedUnitCount, sourceReference]
+      properties:
+        code: { type: string }
+        name: { type: string }
+        documentedUnitCount: { type: integer }
+        sourceReference: { type: string }
+    ScorecardLine:
+      type: object
+      additionalProperties: false
+      required: [id, code, title, requirement, evidenceHint, reportTemplate, evidencePolicy, maximumScore, sourceSheet, sourceRow, displayOrder]
+      properties:
+        id: { type: string }
+        code: { type: string }
+        title: { type: string }
+        requirement: { type: string }
+        evidenceHint: { type: string }
+        reportTemplate: { type: string }
+        evidencePolicy: { $ref: '#/components/schemas/EvidencePolicy' }
+        maximumScore: { type: number }
+        sourceSheet: { type: string }
+        sourceRow: { type: integer }
+        displayOrder: { type: integer }
+    ScorecardGroup:
+      type: object
+      additionalProperties: false
+      required: [id, code, title, section, displayOrder, lines]
+      properties:
+        id: { type: string }
+        code: { type: string }
+        title: { type: string }
+        section: { type: string, enum: [CORE, BONUS] }
+        displayOrder: { type: integer }
+        lines:
+          type: array
+          items: { $ref: '#/components/schemas/ScorecardLine' }
+    ScorecardCatalog:
+      type: object
+      additionalProperties: false
+      required: [id, campaignId, campaignName, title, audience, status, source, policy, unitGroups, groups]
+      properties:
+        id: { type: string }
+        campaignId: { type: string }
+        campaignName: { type: string }
+        title: { type: string }
+        audience: { type: string }
+        status: { type: string }
+        source: { $ref: '#/components/schemas/ScorecardSource' }
+        policy: { $ref: '#/components/schemas/ScorecardPolicy' }
+        unitGroups:
+          type: array
+          items: { $ref: '#/components/schemas/ScorecardUnitGroup' }
+        groups:
+          type: array
+          items: { $ref: '#/components/schemas/ScorecardGroup' }
+    AssignmentUnitGroup:
+      type: object
+      additionalProperties: false
+      required: [code, name, documentedUnitCount]
+      properties:
+        code: { type: string }
+        name: { type: string }
+        documentedUnitCount: { type: integer }
+    AssignmentTeam:
+      type: object
+      additionalProperties: false
+      required: [id, name, monitorId, monitorName, availableAssessorCount, lockedAssessorCount]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        monitorId: { type: [string, 'null'] }
+        monitorName: { type: [string, 'null'] }
+        availableAssessorCount: { type: integer, minimum: 0 }
+        lockedAssessorCount: { type: integer, minimum: 0 }
+    AssignmentReviewer:
+      type: object
+      additionalProperties: false
+      required: [id, displayName, teamId, enabled, teamMonitor]
+      properties:
+        id: { type: string }
+        displayName: { type: string }
+        teamId: { type: string }
+        enabled: { type: boolean }
+        teamMonitor: { type: boolean }
+    AssignmentPlan:
+      type: object
+      additionalProperties: false
+      required: [groupId, unitGroupCodes, teamId, reviewerId, version, expectedTasks, submittedTasks, reviewedTasks, lastReviewedBy, lastReviewedAt]
+      properties:
+        groupId: { type: string }
+        unitGroupCodes:
+          type: array
+          items: { type: string }
+        teamId: { type: [string, 'null'] }
+        reviewerId: { type: [string, 'null'] }
+        version: { type: integer }
+        expectedTasks: { type: integer }
+        submittedTasks: { type: integer }
+        reviewedTasks: { type: integer }
+        lastReviewedBy: { type: [string, 'null'] }
+        lastReviewedAt: { type: [string, 'null'], format: date-time }
+    AssignmentProgress:
+      type: object
+      additionalProperties: false
+      required: [totalGroups, readyGroups, expectedTasks, submittedTasks, reviewedTasks]
+      properties:
+        totalGroups: { type: integer }
+        readyGroups: { type: integer }
+        expectedTasks: { type: integer }
+        submittedTasks: { type: integer }
+        reviewedTasks: { type: integer }
+    AssignmentWorkbench:
+      type: object
+      additionalProperties: false
+      required: [campaignId, campaignName, phase, campaignVersion, scorecardStatus, unitGroups, teams, reviewers, plans, progress]
+      properties:
+        campaignId: { type: string }
+        campaignName: { type: string }
+        phase: { $ref: '#/components/schemas/CampaignPhase' }
+        campaignVersion: { type: integer }
+        scorecardStatus: { type: string }
+        unitGroups:
+          type: array
+          items: { $ref: '#/components/schemas/AssignmentUnitGroup' }
+        teams:
+          type: array
+          items: { $ref: '#/components/schemas/AssignmentTeam' }
+        reviewers:
+          type: array
+          items: { $ref: '#/components/schemas/AssignmentReviewer' }
+        plans:
+          type: array
+          items: { $ref: '#/components/schemas/AssignmentPlan' }
+        progress: { $ref: '#/components/schemas/AssignmentProgress' }
+    SaveAssignmentCommand:
+      type: object
+      additionalProperties: false
+      required: [unitGroupCodes, teamId, reviewerId, expectedVersion]
+      properties:
+        unitGroupCodes:
+          type: array
+          items: { type: string }
+        teamId: { type: [string, 'null'] }
+        reviewerId: { type: [string, 'null'] }
+        expectedVersion: { type: integer }
+    AssignmentGroupVersion:
+      type: object
+      additionalProperties: false
+      required: [groupId, expectedVersion]
+      properties:
+        groupId: { type: string }
+        expectedVersion: { type: integer }
+    BulkAssignmentCommand:
+      type: object
+      additionalProperties: false
+      required: [groups, unitGroupCodes, teamId, reviewerId]
+      properties:
+        groups:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/AssignmentGroupVersion' }
+        unitGroupCodes:
+          type: array
+          items: { type: string }
+        teamId: { type: [string, 'null'] }
+        reviewerId: { type: [string, 'null'] }
+        mode:
+          type: string
+          enum: [ALL, SCOPE, REVIEW]
+    VersionCommand:
+      type: object
+      additionalProperties: false
+      required: [expectedVersion]
+      properties:
+        expectedVersion: { type: integer }
+    UnitTask:
+      type: object
+      additionalProperties: false
+      required: [lineId, groupCode, lineCode, title, requirement, evidenceHint, evidencePolicy, evidenceRequired, summaryRequired, maximumScore, reviewTeamName, status, selfScore, evidenceUrl, summary, revision, version, returnReason, returnedAt, roundOneScore, roundOneReason, roundOneDecidedBy, roundOneDecidedAt, explanationBody, explanationEvidenceUrl, explanationRevision, explanationSubmittedAt, roundTwoScore, roundTwoReason, roundTwoDecidedBy, roundTwoDecidedAt]
+      properties:
+        lineId: { type: string }
+        groupCode: { type: string }
+        lineCode: { type: string }
+        title: { type: string }
+        requirement: { type: string }
+        evidenceHint: { type: string }
+        evidencePolicy: { $ref: '#/components/schemas/EvidencePolicy' }
+        evidenceRequired: { type: boolean }
+        summaryRequired: { type: boolean }
+        maximumScore: { type: number }
+        reviewTeamName: { type: string }
+        status: { $ref: '#/components/schemas/TaskStatus' }
+        selfScore: { type: [number, 'null'] }
+        evidenceUrl: { type: string }
+        summary: { type: string }
+        revision: { type: integer }
+        version: { type: integer }
+        returnReason: { type: string }
+        returnedAt: { type: [string, 'null'], format: date-time }
+        roundOneScore: { type: [number, 'null'] }
+        roundOneReason: { type: string }
+        roundOneDecidedBy: { type: string }
+        roundOneDecidedAt: { type: [string, 'null'], format: date-time }
+        explanationBody: { type: string }
+        explanationEvidenceUrl: { type: string }
+        explanationRevision: { type: integer }
+        explanationSubmittedAt: { type: [string, 'null'], format: date-time }
+        roundTwoScore: { type: [number, 'null'] }
+        roundTwoReason: { type: string }
+        roundTwoDecidedBy: { type: string }
+        roundTwoDecidedAt: { type: [string, 'null'], format: date-time }
+    UnitTaskView:
+      type: object
+      additionalProperties: false
+      required: [campaignId, campaignName, phase, organizationId, organizationName, unitGroupName, tasks]
+      properties:
+        campaignId: { type: string }
+        campaignName: { type: string }
+        phase: { $ref: '#/components/schemas/CampaignPhase' }
+        organizationId: { type: string }
+        organizationName: { type: string }
+        unitGroupName: { type: string }
+        tasks:
+          type: array
+          items: { $ref: '#/components/schemas/UnitTask' }
+    UnitFinalResultLine:
+      type: object
+      additionalProperties: false
+      required: [lineId, groupCode, lineCode, title, section, maximumScore, selfScore, roundOneScore, roundTwoScore, finalScore]
+      properties:
+        lineId: { type: string }
+        groupCode: { type: string }
+        lineCode: { type: string }
+        title: { type: string }
+        section: { type: string, enum: [CORE, BONUS] }
+        maximumScore: { type: number }
+        selfScore: { type: number }
+        roundOneScore: { type: number }
+        roundTwoScore: { type: [number, 'null'] }
+        finalScore: { type: number }
+    UnitFinalResult:
+      type: object
+      additionalProperties: false
+      required: [campaignId, campaignName, phase, published, resultVersion, publishedAt, organizationId, organizationName, unitGroupCode, applicableCoreMaximum, coreScore, bonusScore, totalScore, completionRate, lines]
+      properties:
+        campaignId: { type: string }
+        campaignName: { type: string }
+        phase: { $ref: '#/components/schemas/CampaignPhase' }
+        published: { type: boolean }
+        resultVersion: { type: [integer, 'null'] }
+        publishedAt: { type: [string, 'null'], format: date-time }
+        organizationId: { type: string }
+        organizationName: { type: [string, 'null'] }
+        unitGroupCode: { type: [string, 'null'] }
+        applicableCoreMaximum: { type: [number, 'null'] }
+        coreScore: { type: [number, 'null'] }
+        bonusScore: { type: [number, 'null'] }
+        totalScore: { type: [number, 'null'] }
+        completionRate: { type: [number, 'null'] }
+        lines:
+          type: array
+          items: { $ref: '#/components/schemas/UnitFinalResultLine' }
+    SaveTaskCommand:
+      type: object
+      additionalProperties: false
+      required: [selfScore, evidenceUrl, summary, expectedVersion]
+      properties:
+        selfScore: { type: [number, 'null'] }
+        evidenceUrl: { type: [string, 'null'], maxLength: 2000 }
+        summary: { type: [string, 'null'], maxLength: 4000 }
+        expectedVersion: { type: integer }
+    ExplanationCommand:
+      type: object
+      additionalProperties: false
+      required: [body, evidenceUrl, expectedRevision]
+      properties:
+        body: { type: string, minLength: 10, maxLength: 4000 }
+        evidenceUrl: { type: [string, 'null'], maxLength: 2000 }
+        expectedRevision: { type: integer }
+    ReviewCase:
+      type: object
+      additionalProperties: false
+      required: [id, organizationName, groupCode, lineCode, lineTitle, maximumScore, selfScore, evidenceUrl, summary, roundNumber, status, version, awardedScore, reason, evidenceChecked, decidedByName, decidedAt, roundOneScore, roundOneReason, explanationBody, explanationEvidenceUrl, explanationRevision]
+      properties:
+        id: { type: string }
+        organizationName: { type: string }
+        groupCode: { type: string }
+        lineCode: { type: string }
+        lineTitle: { type: string }
+        maximumScore: { type: number }
+        selfScore: { type: number }
+        evidenceUrl: { type: string }
+        summary: { type: string }
+        roundNumber: { type: integer, enum: [1, 2] }
+        status: { type: string }
+        version: { type: integer }
+        awardedScore: { type: [number, 'null'] }
+        reason: { type: [string, 'null'] }
+        evidenceChecked: { type: boolean }
+        decidedByName: { type: [string, 'null'] }
+        decidedAt: { type: [string, 'null'], format: date-time }
+        roundOneScore: { type: [number, 'null'] }
+        roundOneReason: { type: [string, 'null'] }
+        explanationBody: { type: [string, 'null'] }
+        explanationEvidenceUrl: { type: [string, 'null'] }
+        explanationRevision: { type: integer }
+    ReviewTeamMemberProgress:
+      type: object
+      additionalProperties: false
+      required: [id, displayName, teamMonitor, assignedCriteria, expectedCases, pendingCases, completedCases]
+      properties:
+        id: { type: string }
+        displayName: { type: string }
+        teamMonitor: { type: boolean }
+        assignedCriteria: { type: integer, minimum: 0 }
+        expectedCases: { type: integer, minimum: 0 }
+        pendingCases: { type: integer, minimum: 0 }
+        completedCases: { type: integer, minimum: 0 }
+    ReviewTeamOverview:
+      type: object
+      additionalProperties: false
+      required: [assignedCriteria, expectedCases, pendingCases, completedCases, members]
+      properties:
+        assignedCriteria: { type: integer, minimum: 0 }
+        expectedCases: { type: integer, minimum: 0 }
+        pendingCases: { type: integer, minimum: 0 }
+        completedCases: { type: integer, minimum: 0 }
+        members:
+          type: array
+          items: { $ref: '#/components/schemas/ReviewTeamMemberProgress' }
+    ReviewCriterionProgress:
+      type: object
+      additionalProperties: false
+      required: [groupId, code, title, lineCount, expectedCases, submittedCases, completedCases, adjustedCases, returnedCases]
+      properties:
+        groupId: { type: string }
+        code: { type: string }
+        title: { type: string }
+        lineCount: { type: integer, minimum: 1 }
+        expectedCases: { type: integer, minimum: 0 }
+        submittedCases: { type: integer, minimum: 0 }
+        completedCases: { type: integer, minimum: 0 }
+        adjustedCases: { type: integer, minimum: 0 }
+        returnedCases: { type: integer, minimum: 0 }
+    ReviewQueue:
+      type: object
+      additionalProperties: false
+      required: [campaignId, campaignName, phase, teamId, teamName, teamOverview, criteria, cases]
+      properties:
+        campaignId: { type: string }
+        campaignName: { type: string }
+        phase: { $ref: '#/components/schemas/CampaignPhase' }
+        teamId: { type: string }
+        teamName: { type: string }
+        teamOverview:
+          oneOf:
+            - { $ref: '#/components/schemas/ReviewTeamOverview' }
+            - { type: 'null' }
+        criteria:
+          type: array
+          items: { $ref: '#/components/schemas/ReviewCriterionProgress' }
+        cases:
+          type: array
+          items: { $ref: '#/components/schemas/ReviewCase' }
+    ReviewControlCriterion:
+      type: object
+      additionalProperties: false
+      required: [groupId, code, title, assessorId, assessorName, teamName, expectedCases, submittedCases, completedCases, remainingCases, completionRate]
+      properties:
+        groupId: { type: string }
+        code: { type: string }
+        title: { type: string }
+        assessorId: { type: string }
+        assessorName: { type: string }
+        teamName: { type: string }
+        expectedCases: { type: integer, minimum: 0 }
+        submittedCases: { type: integer, minimum: 0 }
+        completedCases: { type: integer, minimum: 0 }
+        remainingCases: { type: integer, minimum: 0 }
+        completionRate: { type: number, minimum: 0, maximum: 1 }
+    ReviewControlAssessor:
+      type: object
+      additionalProperties: false
+      required: [assessorId, assessorName, teamName, assignedCriteria, expectedCases, submittedCases, completedCases, remainingCases, completionRate]
+      properties:
+        assessorId: { type: string }
+        assessorName: { type: string }
+        teamName: { type: string }
+        assignedCriteria: { type: integer, minimum: 0 }
+        expectedCases: { type: integer, minimum: 0 }
+        submittedCases: { type: integer, minimum: 0 }
+        completedCases: { type: integer, minimum: 0 }
+        remainingCases: { type: integer, minimum: 0 }
+        completionRate: { type: number, minimum: 0, maximum: 1 }
+    ReviewControl:
+      type: object
+      additionalProperties: false
+      required: [campaignId, campaignName, phase, campaignVersion, roundNumber, expectedCases, submittedCases, completedCases, pendingCases, missingSubmissions, reductionsWithoutReason, assessorsWithPending, outOfRangeCases, canOpenExplanation, criteria, assessors]
+      properties:
+        campaignId: { type: string }
+        campaignName: { type: string }
+        phase: { $ref: '#/components/schemas/CampaignPhase' }
+        campaignVersion: { type: integer, minimum: 0 }
+        roundNumber: { type: integer, enum: [1, 2] }
+        expectedCases: { type: integer, minimum: 0 }
+        submittedCases: { type: integer, minimum: 0 }
+        completedCases: { type: integer, minimum: 0 }
+        pendingCases: { type: integer, minimum: 0 }
+        missingSubmissions: { type: integer, minimum: 0 }
+        reductionsWithoutReason: { type: integer, minimum: 0 }
+        assessorsWithPending: { type: integer, minimum: 0 }
+        outOfRangeCases: { type: integer, minimum: 0 }
+        canOpenExplanation: { type: boolean }
+        criteria:
+          type: array
+          items: { $ref: '#/components/schemas/ReviewControlCriterion' }
+        assessors:
+          type: array
+          items: { $ref: '#/components/schemas/ReviewControlAssessor' }
+    ReviewControlCase:
+      type: object
+      additionalProperties: false
+      required: [caseId, organizationId, organizationName, unitGroupCode, lineId, lineCode, lineTitle, maximumScore, assessorId, assessorName, teamName, submissionStatus, submissionRevision, selfScore, evidenceUrl, summary, roundNumber, reviewStatus, awardedScore, reason, evidenceChecked, decidedByName, decidedAt, roundOneScore, roundOneReason, roundOneDecidedByName, roundOneDecidedAt, explanationBody, explanationEvidenceUrl, explanationRevision, roundTwoScore, roundTwoReason, roundTwoDecidedByName, roundTwoDecidedAt]
+      properties:
+        caseId: { type: [string, 'null'] }
+        organizationId: { type: string }
+        organizationName: { type: string }
+        unitGroupCode: { type: string }
+        lineId: { type: string }
+        lineCode: { type: string }
+        lineTitle: { type: string }
+        maximumScore: { type: number, minimum: 0 }
+        assessorId: { type: string }
+        assessorName: { type: string }
+        teamName: { type: string }
+        submissionStatus: { type: string }
+        submissionRevision: { type: integer, minimum: 0 }
+        selfScore: { type: [number, 'null'] }
+        evidenceUrl: { type: [string, 'null'] }
+        summary: { type: [string, 'null'] }
+        roundNumber: { type: integer, enum: [1, 2] }
+        reviewStatus: { type: string }
+        awardedScore: { type: [number, 'null'] }
+        reason: { type: [string, 'null'] }
+        evidenceChecked: { type: boolean }
+        decidedByName: { type: [string, 'null'] }
+        decidedAt: { type: [string, 'null'], format: date-time }
+        roundOneScore: { type: [number, 'null'] }
+        roundOneReason: { type: [string, 'null'] }
+        roundOneDecidedByName: { type: [string, 'null'] }
+        roundOneDecidedAt: { type: [string, 'null'], format: date-time }
+        explanationBody: { type: [string, 'null'] }
+        explanationEvidenceUrl: { type: [string, 'null'] }
+        explanationRevision: { type: integer, minimum: 0 }
+        roundTwoScore: { type: [number, 'null'] }
+        roundTwoReason: { type: [string, 'null'] }
+        roundTwoDecidedByName: { type: [string, 'null'] }
+        roundTwoDecidedAt: { type: [string, 'null'], format: date-time }
+    ReviewControlCriterionCases:
+      type: object
+      additionalProperties: false
+      required: [groupId, code, title, assessorId, assessorName, teamName, roundNumber, expectedCases, submittedCases, completedCases, cases]
+      properties:
+        groupId: { type: string }
+        code: { type: string }
+        title: { type: string }
+        assessorId: { type: string }
+        assessorName: { type: string }
+        teamName: { type: string }
+        roundNumber: { type: integer, enum: [1, 2] }
+        expectedCases: { type: integer, minimum: 0 }
+        submittedCases: { type: integer, minimum: 0 }
+        completedCases: { type: integer, minimum: 0 }
+        cases:
+          type: array
+          items: { $ref: '#/components/schemas/ReviewControlCase' }
+    ReviewDecisionCommand:
+      type: object
+      additionalProperties: false
+      required: [awardedScore, evidenceChecked, reason, expectedVersion]
+      properties:
+        awardedScore: { type: number }
+        evidenceChecked: { type: boolean }
+        reason: { type: [string, 'null'] }
+        expectedVersion: { type: integer }
+    ReturnSubmissionCommand:
+      type: object
+      additionalProperties: false
+      required: [reason, expectedVersion]
+      properties:
+        reason: { type: string, minLength: 1 }
+        expectedVersion: { type: integer }
+    UnitResult:
+      type: object
+      additionalProperties: false
+      required: [organizationId, organizationCode, organizationName, unitGroupCode, applicableCoreMaximum, coreScore, bonusRawScore, bonusCappedScore, totalScore, completionRate]
+      properties:
+        organizationId: { type: string }
+        organizationCode: { type: string }
+        organizationName: { type: string }
+        unitGroupCode: { type: string }
+        applicableCoreMaximum: { type: number }
+        coreScore: { type: number }
+        bonusRawScore: { type: number }
+        bonusCappedScore: { type: number }
+        totalScore: { type: number }
+        completionRate: { type: number }
+    FinalResult:
+      type: object
+      additionalProperties: false
+      required: [campaignId, campaignName, phase, campaignVersion, expectedTasks, resolvedTasks, resultId, resultVersion, status, aggregateTotal, checksum, preparedBy, preparedAt, approvedBy, approvedAt, publishedBy, publishedAt, version, units]
+      properties:
+        campaignId: { type: string }
+        campaignName: { type: string }
+        phase: { $ref: '#/components/schemas/CampaignPhase' }
+        campaignVersion: { type: integer }
+        expectedTasks: { type: integer }
+        resolvedTasks: { type: integer }
+        resultId: { type: [string, 'null'] }
+        resultVersion: { type: [integer, 'null'] }
+        status:
+          oneOf:
+            - { $ref: '#/components/schemas/ResultStatus' }
+            - { type: 'null' }
+        aggregateTotal: { type: number }
+        checksum: { type: [string, 'null'] }
+        preparedBy: { type: [string, 'null'] }
+        preparedAt: { type: [string, 'null'], format: date-time }
+        approvedBy: { type: [string, 'null'] }
+        approvedAt: { type: [string, 'null'], format: date-time }
+        publishedBy: { type: [string, 'null'] }
+        publishedAt: { type: [string, 'null'], format: date-time }
+        version: { type: integer }
+        units:
+          type: array
+          items: { $ref: '#/components/schemas/UnitResult' }
+    PrepareResultCommand:
+      type: object
+      additionalProperties: false
+      required: [expectedCampaignVersion]
+      properties:
+        expectedCampaignVersion: { type: integer }
+    ResultVersionCommand:
+      type: object
+      additionalProperties: false
+      required: [expectedResultVersion]
+      properties:
+        expectedResultVersion: { type: integer }
+    PublishResultCommand:
+      type: object
+      additionalProperties: false
+      required: [expectedResultVersion, expectedCampaignVersion]
+      properties:
+        expectedResultVersion: { type: integer }
+        expectedCampaignVersion: { type: integer }
+    Account:
+      type: object
+      additionalProperties: false
+      required: [id, username, displayName, role, organizationId, teamId, enabled, passwordChangeRequired, createdAt, campaignIds, capabilities]
+      properties:
+        id: { type: string }
+        username: { type: string }
+        displayName: { type: string }
+        role: { $ref: '#/components/schemas/AccountRole' }
+        organizationId: { type: [string, 'null'] }
+        teamId: { type: [string, 'null'] }
+        enabled: { type: boolean }
+        passwordChangeRequired: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        sourceFileName: { type: [string, 'null'] }
+        sourceSha256: { type: [string, 'null'] }
+        sourceSheetName: { type: [string, 'null'] }
+        sourceRow: { type: [integer, 'null'], minimum: 1 }
+        campaignIds:
+          type: array
+          items: { type: string }
+        capabilities:
+          type: array
+          items: { type: string }
     CreateAccountCommand:
       type: object
-      required: [username, displayName, password, role]
+      additionalProperties: false
+      required: [username, displayName, password, role, organizationId, teamId]
       properties:
         username: { type: string, pattern: '^[a-z0-9][a-z0-9._-]{2,39}$' }
         displayName: { type: string, minLength: 2, maxLength: 240 }
         password: { type: string, format: password, minLength: 15, maxLength: 72 }
-        role:
-          type: string
-          enum: [SUPERADMIN, CAMPAIGN_ADMIN, REVIEWER, UNIT_MEMBER]
+        role: { $ref: '#/components/schemas/AccountRole' }
         organizationId: { type: [string, 'null'] }
         teamId: { type: [string, 'null'] }
+        teamMonitor: { type: boolean, default: false }
+        sourceFileName: { type: string, maxLength: 240 }
+        sourceSha256: { type: string, pattern: '^[a-fA-F0-9]{64}$' }
+        sourceSheetName: { type: string, maxLength: 120 }
+        sourceRow: { type: integer, minimum: 1 }
+    SetAccountStatusCommand:
+      type: object
+      additionalProperties: false
+      required: [enabled]
+      properties:
+        enabled: { type: boolean }
+    DirectoryUnitGroup:
+      type: object
+      additionalProperties: false
+      required: [code, name, documentedUnitCount]
+      properties:
+        code: { type: string }
+        name: { type: string }
+        documentedUnitCount: { type: integer }
+    Organization:
+      type: object
+      additionalProperties: false
+      required: [id, code, name, unitGroupCode, unitGroupName, enabled]
+      properties:
+        id: { type: string }
+        code: { type: string }
+        name: { type: string }
+        unitGroupCode: { type: string }
+        unitGroupName: { type: string }
+        enabled: { type: boolean }
+        sourceFileName: { type: [string, 'null'] }
+        sourceSha256: { type: [string, 'null'] }
+        sourceSheetName: { type: [string, 'null'] }
+        sourceRow: { type: [integer, 'null'], minimum: 1 }
+    ReviewTeam:
+      type: object
+      additionalProperties: false
+      required: [id, code, name, enabled]
+      properties:
+        id: { type: string }
+        code: { type: string }
+        name: { type: string }
+        enabled: { type: boolean }
+        sourceFileName: { type: [string, 'null'] }
+        sourceSha256: { type: [string, 'null'] }
+        sourceSheetName: { type: [string, 'null'] }
+        sourceRow: { type: [integer, 'null'], minimum: 1 }
+    OrganizationDirectory:
+      type: object
+      additionalProperties: false
+      required: [unitGroups, organizations, teams]
+      properties:
+        unitGroups:
+          type: array
+          items: { $ref: '#/components/schemas/DirectoryUnitGroup' }
+        organizations:
+          type: array
+          items: { $ref: '#/components/schemas/Organization' }
+        teams:
+          type: array
+          items: { $ref: '#/components/schemas/ReviewTeam' }
+    CreateOrganizationCommand:
+      type: object
+      additionalProperties: false
+      required: [code, name, unitGroupCode]
+      properties:
+        code: { type: string }
+        name: { type: string }
+        unitGroupCode: { type: string }
+        sourceFileName: { type: string, maxLength: 240 }
+        sourceSha256: { type: string, pattern: '^[a-fA-F0-9]{64}$' }
+        sourceSheetName: { type: string, maxLength: 120 }
+        sourceRow: { type: integer, minimum: 1 }
+    CreateReviewTeamCommand:
+      type: object
+      additionalProperties: false
+      required: [code, name]
+      properties:
+        code: { type: string }
+        name: { type: string }
+        sourceFileName: { type: string, maxLength: 240 }
+        sourceSha256: { type: string, pattern: '^[a-fA-F0-9]{64}$' }
+        sourceSheetName: { type: string, maxLength: 120 }
+        sourceRow: { type: integer, minimum: 1 }
     Problem:
       type: object
+      additionalProperties: true
+      required: [type, title, status, detail, code]
       properties:
         type: { type: string, format: uri }
         title: { type: string }
@@ -353,19 +1240,93 @@ components:
       content:
         application/problem+json:
           schema: { $ref: '#/components/schemas/Problem' }
+    Session:
+      description: Phiên hiện tại
+      headers:
+        X-Session-Expires-At:
+          $ref: '#/components/headers/SessionExpiresAt'
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Session' }
+    AssignmentWorkbench:
+      description: Workbench phân công hiện hành
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/AssignmentWorkbench' }
+    UnitTaskView:
+      description: Bảng công việc của đơn vị
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/UnitTaskView' }
+    UnitFinalResult:
+      description: Kết quả cuối của đơn vị từ snapshot đã công bố
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/UnitFinalResult' }
+    ReviewQueue:
+      description: Hàng chờ thẩm định
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ReviewQueue' }
+    ReviewControl:
+      description: Projection điều hành tiến độ thẩm định
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ReviewControl' }
+    ReviewControlCriterionCases:
+      description: Hồ sơ và lịch sử chấm chỉ đọc của một tiêu chí
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ReviewControlCriterionCases' }
+    FinalResult:
+      description: Snapshot kết quả hiện hành
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/FinalResult' }
+  requestBodies:
+    VersionCommand:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/VersionCommand' }
+    SaveTaskCommand:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/SaveTaskCommand' }
+    ReviewDecisionCommand:
+      required: true
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ReviewDecisionCommand' }
   headers:
     SessionExpiresAt:
-      description: Thời điểm hết hạn sớm nhất giữa idle timeout và tuổi thọ tuyệt đối của phiên.
+      description: Thời điểm hết hạn sớm nhất của phiên.
       schema: { type: string, format: date-time }
   securitySchemes:
     sessionCookie:
       type: apiKey
       in: cookie
       name: CAMPAIGN_SESSION
-      description: Session phía máy chủ; lệnh ghi đồng thời yêu cầu header X-XSRF-TOKEN.
+      description: Session phía máy chủ; lệnh ghi đồng thời yêu cầu X-XSRF-TOKEN.
   parameters:
     IdempotencyKey:
       name: Idempotency-Key
       in: header
       required: true
       schema: { type: string, minLength: 1, maxLength: 120 }
+    GroupId:
+      name: groupId
+      in: path
+      required: true
+      schema: { type: string }
+    LineId:
+      name: lineId
+      in: path
+      required: true
+      schema: { type: string }
+    CaseId:
+      name: caseId
+      in: path
+      required: true
+      schema: { type: string }

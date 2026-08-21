@@ -1,6 +1,6 @@
 spring:
   application:
-    name: campaign-workflow
+    name: neko-doan
   lifecycle:
     timeout-per-shutdown-phase: 30s
   datasource:

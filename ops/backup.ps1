@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
   [string]$Destination = (Join-Path (Split-Path -Parent $PSScriptRoot) 'backups'),
-  [string]$ComposeProject = 'campaign-workflow',
+  [string]$ComposeProject = 'neko-doan',
   [string[]]$ComposeFiles = @('compose.yaml')
 )
 
@@ -15,7 +15,7 @@ if (-not $resolvedDestination.StartsWith($resolvedRoot, [System.StringComparison
 
 New-Item -ItemType Directory -Path $resolvedDestination -Force | Out-Null
 $timestamp = Get-Date -Format 'yyyyMMdd-HHmmss'
-$archiveName = "campaign-$timestamp.dump"
+$archiveName = "neko-doan-$timestamp.dump"
 $containerPath = "/tmp/$archiveName"
 $compose = @('compose', '-p', $ComposeProject)
 foreach ($file in $ComposeFiles) {

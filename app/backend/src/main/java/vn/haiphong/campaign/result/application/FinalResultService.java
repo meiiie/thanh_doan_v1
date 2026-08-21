@@ -18,22 +18,21 @@ import org.springframework.transaction.annotation.Transactional;
 import vn.haiphong.campaign.access.Actor;
 import vn.haiphong.campaign.access.ActorRole;
 import vn.haiphong.campaign.access.CurrentActor;
+import vn.haiphong.campaign.lifecycle.application.IdempotencyPort;
 import vn.haiphong.campaign.lifecycle.application.OptimisticConflict;
 import vn.haiphong.campaign.lifecycle.domain.DomainRuleViolation;
 import vn.haiphong.campaign.lifecycle.domain.FinalResult;
-import vn.haiphong.campaign.lifecycle.infrastructure.IdempotencyStore;
-import vn.haiphong.campaign.result.infrastructure.FinalResultRepository;
 
 @Service
 public class FinalResultService {
-    private final FinalResultRepository results;
+    private final FinalResultGateway results;
     private final CurrentActor currentActor;
     private final Clock clock;
-    private final IdempotencyStore idempotency;
+    private final IdempotencyPort idempotency;
     private final XlsxExportService xlsx;
 
-    public FinalResultService(FinalResultRepository results, CurrentActor currentActor, Clock clock,
-                              IdempotencyStore idempotency, XlsxExportService xlsx) {
+    public FinalResultService(FinalResultGateway results, CurrentActor currentActor, Clock clock,
+                              IdempotencyPort idempotency, XlsxExportService xlsx) {
         this.results = results;
         this.currentActor = currentActor;
         this.clock = clock;
@@ -44,21 +43,25 @@ public class FinalResultService {
     @Transactional(readOnly = true)
     public FinalResultView view() {
         requireAdministrator(null);
-        FinalResultRepository.CampaignRow campaign = results.campaign();
-        int expected = results.expectedTasks();
-        int completed = results.completedRoundTwo();
+        FinalResultGateway.CampaignRow campaign = results.campaign();
         return results.current().map(header -> {
             FinalResult result = header.result();
+            int snapshotTasks = results.snapshotTaskCount(result.id());
             return new FinalResultView(
-                    campaign.id(), campaign.name(), campaign.phase(), campaign.version(), expected, completed,
+                    campaign.id(), campaign.name(), campaign.phase(), campaign.version(), snapshotTasks, snapshotTasks,
                     result.id(), result.resultVersion(), result.status().name(), result.totalScore(), result.checksum(),
                     header.preparedByName(), header.preparedAt(), header.approvedByName(), header.approvedAt(),
-                    header.publishedByName(), header.publishedAt(), result.version(), results.units(result.id())
+                    header.publishedByName(), header.publishedAt(), result.version(),
+                    results.units(result.id()).stream().map(FinalResultService::unitView).toList()
             );
-        }).orElseGet(() -> new FinalResultView(
-                campaign.id(), campaign.name(), campaign.phase(), campaign.version(), expected, completed,
-                null, null, null, BigDecimal.ZERO, null, null, null, null, null, null, null, 0, List.of()
-        ));
+        }).orElseGet(() -> {
+            int expected = results.expectedTasks();
+            int completed = results.resolvedTasks();
+            return new FinalResultView(
+                    campaign.id(), campaign.name(), campaign.phase(), campaign.version(), expected, completed,
+                    null, null, null, BigDecimal.ZERO, null, null, null, null, null, null, null, 0, List.of()
+            );
+        });
     }
 
     @Transactional
@@ -68,7 +71,7 @@ public class FinalResultService {
         if (idempotency.isReplay(actor.id(), action, idempotencyKey, command.expectedCampaignVersion())) {
             return view();
         }
-        FinalResultRepository.CampaignRow campaign = results.campaign();
+        FinalResultGateway.CampaignRow campaign = results.campaign();
         if (!"ROUND_2".equals(campaign.phase())) {
             throw new DomainRuleViolation("ROUND_TWO_NOT_ACTIVE", "Chỉ lập kết quả sau khi vòng 2 đang mở.");
         }
@@ -76,18 +79,19 @@ public class FinalResultService {
             throw new OptimisticConflict("Chiến dịch đã thay đổi. Hãy tải lại.");
         }
         int expected = results.expectedTasks();
-        int completed = results.completedRoundTwo();
+        int completed = results.resolvedTasks();
         if (expected == 0 || completed != expected) {
             throw new DomainRuleViolation(
-                    "ROUND_TWO_INCOMPLETE", "Đã chấm vòng 2 " + completed + "/" + expected + " hồ sơ."
+                    "SCORING_INCOMPLETE", "Đã chốt " + completed + "/" + expected +
+                    " hồ sơ; các dòng bị giảm điểm phải hoàn tất vòng 2."
             );
         }
-        List<FinalResultRepository.SnapshotLine> lines = results.sourceLines();
+        List<FinalResultGateway.SnapshotLine> lines = results.sourceLines();
         if (lines.size() != expected) {
             throw new DomainRuleViolation("SNAPSHOT_SOURCE_INCOMPLETE", "Dữ liệu nguồn snapshot chưa đầy đủ.");
         }
-        List<FinalResultRepository.UnitSnapshot> units = calculateUnits(lines, results.bonusCap());
-        BigDecimal aggregateTotal = units.stream().map(FinalResultRepository.UnitSnapshot::totalScore)
+        List<FinalResultGateway.UnitSnapshot> units = calculateUnits(lines, results.bonusCap());
+        BigDecimal aggregateTotal = units.stream().map(FinalResultGateway.UnitSnapshot::totalScore)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         int resultVersion = results.nextResultVersion();
         String checksum = checksum(resultVersion, units, lines);
@@ -106,7 +110,7 @@ public class FinalResultService {
         Actor actor = requireAdministrator("result.approve");
         String action = "APPROVE_FINAL_RESULT";
         if (idempotency.isReplay(actor.id(), action, idempotencyKey, command.expectedResultVersion())) return view();
-        FinalResultRepository.ResultHeader current = results.current()
+        FinalResultGateway.ResultHeader current = results.current()
                 .orElseThrow(() -> new DomainRuleViolation("RESULT_NOT_FOUND", "Chưa có snapshot kết quả để duyệt."));
         if (current.result().version() != command.expectedResultVersion()) {
             throw new OptimisticConflict("Kết quả đã thay đổi. Hãy tải lại.");
@@ -126,11 +130,11 @@ public class FinalResultService {
                 actor.id(), action, idempotencyKey, command.expectedResultVersion(),
                 command.expectedCampaignVersion()
         )) return view();
-        FinalResultRepository.CampaignRow campaign = results.campaign();
+        FinalResultGateway.CampaignRow campaign = results.campaign();
         if (campaign.version() != command.expectedCampaignVersion()) {
             throw new OptimisticConflict("Chiến dịch đã thay đổi. Hãy tải lại.");
         }
-        FinalResultRepository.ResultHeader current = results.current()
+        FinalResultGateway.ResultHeader current = results.current()
                 .orElseThrow(() -> new DomainRuleViolation("RESULT_NOT_FOUND", "Chưa có snapshot kết quả để công bố."));
         if (current.result().version() != command.expectedResultVersion()) {
             throw new OptimisticConflict("Kết quả đã thay đổi. Hãy tải lại.");
@@ -148,9 +152,9 @@ public class FinalResultService {
     @Transactional(readOnly = true)
     public ExportFile export() {
         requireAdministrator(null);
-        FinalResultRepository.ResultHeader header = results.current()
+        FinalResultGateway.ResultHeader header = results.current()
                 .orElseThrow(() -> new DomainRuleViolation("RESULT_NOT_FOUND", "Chưa có snapshot kết quả để xuất."));
-        FinalResultRepository.CampaignRow campaign = results.campaign();
+        FinalResultGateway.CampaignRow campaign = results.campaign();
         byte[] content = xlsx.create(
                 campaign, header, results.units(header.result().id()), results.snapshotLines(header.result().id())
         );
@@ -163,7 +167,7 @@ public class FinalResultService {
         if (actor.role() != ActorRole.SUPERADMIN && actor.role() != ActorRole.CAMPAIGN_ADMIN) {
             throw new AccessDeniedException("Final results require campaign administration");
         }
-        if (!actor.hasCampaign(FinalResultRepository.CAMPAIGN_ID)) {
+        if (!actor.hasCampaign(FinalResultGateway.CAMPAIGN_ID)) {
             throw new AccessDeniedException("Campaign is outside the account scope");
         }
         if (capability != null && !actor.hasCapability(capability)) {
@@ -172,11 +176,11 @@ public class FinalResultService {
         return actor;
     }
 
-    private static List<FinalResultRepository.UnitSnapshot> calculateUnits(
-            List<FinalResultRepository.SnapshotLine> lines, BigDecimal bonusCap
+    private static List<FinalResultGateway.UnitSnapshot> calculateUnits(
+            List<FinalResultGateway.SnapshotLine> lines, BigDecimal bonusCap
     ) {
         Map<String, MutableUnit> byOrganization = new LinkedHashMap<>();
-        for (FinalResultRepository.SnapshotLine line : lines) {
+        for (FinalResultGateway.SnapshotLine line : lines) {
             MutableUnit unit = byOrganization.computeIfAbsent(
                     line.organizationId(), ignored -> new MutableUnit(
                             line.organizationId(), line.organizationCode(), line.organizationName(),
@@ -190,13 +194,13 @@ public class FinalResultService {
                 unit.bonusRaw = unit.bonusRaw.add(line.effectiveScore());
             }
         }
-        List<FinalResultRepository.UnitSnapshot> values = new ArrayList<>();
+        List<FinalResultGateway.UnitSnapshot> values = new ArrayList<>();
         for (MutableUnit unit : byOrganization.values()) {
             BigDecimal cappedBonus = unit.bonusRaw.min(bonusCap);
             BigDecimal total = unit.coreScore.add(cappedBonus);
             BigDecimal rate = unit.coreMaximum.signum() == 0 ? BigDecimal.ZERO :
                     unit.coreScore.divide(unit.coreMaximum, 4, RoundingMode.HALF_UP);
-            values.add(new FinalResultRepository.UnitSnapshot(
+            values.add(new FinalResultGateway.UnitSnapshot(
                     unit.id, unit.code, unit.name, unit.unitGroup, unit.coreMaximum, unit.coreScore,
                     unit.bonusRaw, cappedBonus, total, rate
             ));
@@ -204,20 +208,29 @@ public class FinalResultService {
         return List.copyOf(values);
     }
 
-    private static String checksum(int version, List<FinalResultRepository.UnitSnapshot> units,
-                                   List<FinalResultRepository.SnapshotLine> lines) {
+    private static FinalResultView.UnitResultView unitView(FinalResultGateway.UnitSnapshot unit) {
+        return new FinalResultView.UnitResultView(
+                unit.organizationId(), unit.organizationCode(), unit.organizationName(), unit.unitGroupCode(),
+                unit.applicableCoreMaximum(), unit.coreScore(), unit.bonusRawScore(), unit.bonusCappedScore(),
+                unit.totalScore(), unit.completionRate()
+        );
+    }
+
+    private static String checksum(int version, List<FinalResultGateway.UnitSnapshot> units,
+                                   List<FinalResultGateway.SnapshotLine> lines) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             update(digest, "result-version", Integer.toString(version));
-            for (FinalResultRepository.UnitSnapshot unit : units) {
+            for (FinalResultGateway.UnitSnapshot unit : units) {
                 update(digest, unit.organizationId(), unit.applicableCoreMaximum().toPlainString(),
                         unit.coreScore().toPlainString(), unit.bonusRawScore().toPlainString(),
                         unit.bonusCappedScore().toPlainString(), unit.totalScore().toPlainString());
             }
-            for (FinalResultRepository.SnapshotLine line : lines) {
+            for (FinalResultGateway.SnapshotLine line : lines) {
                 update(digest, line.organizationId(), line.lineId(), line.selfScore().toPlainString(),
                         line.roundOneScore().toPlainString(), line.explanationBody(),
-                        line.roundTwoScore().toPlainString(), line.effectiveScore().toPlainString(),
+                        line.roundTwoScore() == null ? null : line.roundTwoScore().toPlainString(),
+                        line.effectiveScore().toPlainString(),
                         line.submissionEvidenceUrl(), Integer.toString(line.submissionRevision()),
                         line.roundOneDecidedBy(), line.roundTwoDecidedBy());
             }

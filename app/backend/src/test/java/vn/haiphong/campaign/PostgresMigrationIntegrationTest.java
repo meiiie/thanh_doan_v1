@@ -26,7 +26,7 @@ class PostgresMigrationIntegrationTest {
                 .locations("classpath:db/migration")
                 .load();
 
-        assertEquals(6, flyway.migrate().migrationsExecuted);
+        assertEquals(8, flyway.migrate().migrationsExecuted);
 
         try (var connection = DriverManager.getConnection(
                 POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword());
@@ -41,6 +41,22 @@ class PostgresMigrationIntegrationTest {
             )) {
                 result.next();
                 assertEquals(3, result.getInt(1));
+            }
+            try (var result = statement.executeQuery(
+                    "select count(*) from information_schema.columns " +
+                            "where table_name in ('organization','review_team','app_account') " +
+                            "and column_name in ('source_file_name','source_sha256','source_sheet_name','source_row')"
+            )) {
+                result.next();
+                assertEquals(12, result.getInt(1));
+            }
+            try (var result = statement.executeQuery(
+                    "select count(*) from information_schema.columns where table_name = 'final_result_line' " +
+                            "and column_name in ('round2_score','round2_decided_by','round2_decided_by_name'," +
+                            "'round2_decided_at') and is_nullable = 'YES'"
+            )) {
+                result.next();
+                assertEquals(4, result.getInt(1));
             }
             assertThrows(SQLException.class, () -> statement.executeUpdate(
                     "update campaign set phase = 'INVALID_PHASE' where id = 'campaign-summer-2026'"

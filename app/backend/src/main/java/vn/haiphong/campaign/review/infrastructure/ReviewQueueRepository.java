@@ -12,11 +12,10 @@ import vn.haiphong.campaign.lifecycle.domain.ReviewCase;
 import vn.haiphong.campaign.lifecycle.domain.ReviewStatus;
 import vn.haiphong.campaign.lifecycle.domain.Submission;
 import vn.haiphong.campaign.lifecycle.domain.SubmissionStatus;
-import vn.haiphong.campaign.review.application.ReviewQueueView;
+import vn.haiphong.campaign.review.application.ReviewQueueGateway;
 
 @Repository
-public class ReviewQueueRepository {
-    public static final String CAMPAIGN_ID = "campaign-summer-2026";
+public class ReviewQueueRepository implements ReviewQueueGateway {
     private final JdbcTemplate jdbc;
 
     public ReviewQueueRepository(JdbcTemplate jdbc) {
@@ -39,10 +38,11 @@ public class ReviewQueueRepository {
         return rows.stream().findFirst();
     }
 
-    public List<ReviewQueueView.CaseView> cases(String reviewerId, String teamId, String phase) {
+    public List<ReviewCaseRow> cases(String reviewerId, String teamId, String phase) {
         int roundNumber = "ROUND_2".equals(phase) || "FINAL_REVIEW".equals(phase) || "PUBLISHED".equals(phase)
                 ? 2 : 1;
         String statusColumn = roundNumber == 2 ? "rc.round2_status" : "rc.round1_status";
+        String eligibleRound = roundNumber == 2 ? "and rc.round2_status <> 'NOT_OPEN' " : "";
         return jdbc.query(
                 "select rc.id, o.name organization_name, g.code group_code, l.code line_code, l.title line_title, " +
                         "l.maximum_score, s.self_score, s.evidence_url, s.summary, " + statusColumn + " current_status, rc.version, " +
@@ -62,9 +62,10 @@ public class ReviewQueueRepository {
                         "left join explanation_revision ex on ex.id = (select ex2.id from explanation_revision ex2 " +
                         "where ex2.review_case_id = rc.id order by ex2.revision desc fetch first 1 row only) " +
                         "where s.campaign_id = ? and rc.reviewer_id = ? and rc.team_id = ? " +
+                        eligibleRound +
                         "order by case " + statusColumn + " when 'QUEUED' then 0 when 'IN_PROGRESS' then 1 else 2 end, " +
                         "o.name, g.display_order, l.display_order",
-                (rs, row) -> new ReviewQueueView.CaseView(
+                (rs, row) -> new ReviewCaseRow(
                         rs.getString("id"), rs.getString("organization_name"), rs.getString("group_code"),
                         rs.getString("line_code"), rs.getString("line_title"), rs.getBigDecimal("maximum_score"),
                         rs.getBigDecimal("self_score"), rs.getString("evidence_url"), rs.getString("summary"),
@@ -74,6 +75,82 @@ public class ReviewQueueRepository {
                         rs.getBigDecimal("round1_score"), rs.getString("round1_reason"),
                         rs.getString("explanation_body"), rs.getString("explanation_url"),
                         rs.getInt("explanation_revision")
+                ), roundNumber, CAMPAIGN_ID, reviewerId, teamId
+        );
+    }
+
+    public List<TeamMemberProgressRow> teamProgress(String teamId, String phase) {
+        boolean roundTwo = "ROUND_2".equals(phase) || "FINAL_REVIEW".equals(phase) ||
+                "PUBLISHED".equals(phase);
+        String statusColumn = roundTwo ? "rc.round2_status" : "rc.round1_status";
+        String expectedCases = roundTwo
+                ? "count(distinct case when rc.round2_status <> 'NOT_OPEN' then rc.id end)"
+                : "count(distinct rc.id)";
+        return jdbc.query(
+                "select a.id, a.display_name, " +
+                        "case when exists (select 1 from account_capability c " +
+                        "where c.account_id = a.id and c.capability = 'review.team.overview') " +
+                        "then true else false end team_monitor, " +
+                        "count(distinct p.group_id) assigned_criteria, " + expectedCases + " expected_cases, " +
+                        "count(distinct case when " + statusColumn +
+                        " in ('WAITING_FOR_SUBMISSION','QUEUED','IN_PROGRESS') then rc.id end) pending_cases, " +
+                        "count(distinct case when " + statusColumn +
+                        " = 'COMPLETED' then rc.id end) completed_cases " +
+                        "from app_account a " +
+                        "left join scorecard_assignment_plan p on p.campaign_id = ? and p.reviewer_id = a.id " +
+                        "left join review_case rc on rc.reviewer_id = a.id and rc.team_id = a.team_id " +
+                        "where a.role = 'REVIEWER' and a.team_id = ? and a.enabled = true " +
+                        "group by a.id, a.display_name " +
+                        "order by team_monitor desc, a.display_name",
+                (rs, row) -> new TeamMemberProgressRow(
+                        rs.getString("id"), rs.getString("display_name"), rs.getBoolean("team_monitor"),
+                        rs.getInt("assigned_criteria"), rs.getInt("expected_cases"),
+                        rs.getInt("pending_cases"), rs.getInt("completed_cases")
+                ), CAMPAIGN_ID, teamId
+        );
+    }
+
+    public List<CriterionProgressRow> criteria(String reviewerId, String teamId, String phase) {
+        int roundNumber = currentRound(phase);
+        String statusColumn = roundNumber == 2 ? "rc.round2_status" : "rc.round1_status";
+        String lineCount = roundNumber == 2
+                ? "count(distinct case when rc.round2_status <> 'NOT_OPEN' then l.id end)"
+                : "count(distinct l.id)";
+        String expectedCases = roundNumber == 2
+                ? "count(case when rc.round2_status <> 'NOT_OPEN' then 1 end)"
+                : "count(*)";
+        String submittedCases = roundNumber == 2
+                ? "count(case when rc.round2_status <> 'NOT_OPEN' then 1 end)"
+                : "count(rc.id)";
+        String having = roundNumber == 2
+                ? " having count(case when rc.round2_status <> 'NOT_OPEN' then 1 end) > 0"
+                : "";
+        return jdbc.query(
+                "select g.id group_id, g.code, g.title, " + lineCount + " line_count, " +
+                        expectedCases + " expected_cases, " + submittedCases + " submitted_cases, " +
+                        "count(case when " + statusColumn + " = 'COMPLETED' then 1 end) completed_cases, " +
+                        "count(case when rd.awarded_score < s.self_score then 1 end) adjusted_cases, " +
+                        "count(case when s.status = 'RETURNED' then 1 end) returned_cases " +
+                        "from scorecard_assignment_plan p " +
+                        "join scorecard_group g on g.id = p.group_id " +
+                        "join scorecard_line l on l.group_id = g.id " +
+                        "join scorecard_applicability ap on ap.campaign_id = p.campaign_id " +
+                        "and ap.group_id = p.group_id " +
+                        "join organization o on o.unit_group_code = ap.unit_group_code and o.enabled = true " +
+                        "left join submission s on s.campaign_id = p.campaign_id and s.organization_id = o.id " +
+                        "and s.line_id = l.id and s.revision > 0 " +
+                        "left join review_case rc on rc.submission_id = s.id and rc.team_id = p.team_id " +
+                        "and rc.reviewer_id = p.reviewer_id " +
+                        "left join review_decision rd on rd.id = (select d.id from review_decision d " +
+                        "where d.review_case_id = rc.id and d.round_number = ? " +
+                        "order by d.revision desc fetch first 1 row only) " +
+                        "where p.campaign_id = ? and p.reviewer_id = ? and p.team_id = ? " +
+                        "group by g.id, g.code, g.title, g.display_order" + having + " order by g.display_order",
+                (rs, row) -> new CriterionProgressRow(
+                        rs.getString("group_id"), rs.getString("code"), rs.getString("title"),
+                        rs.getInt("line_count"), rs.getInt("expected_cases"),
+                        rs.getInt("submitted_cases"), rs.getInt("completed_cases"),
+                        rs.getInt("adjusted_cases"), rs.getInt("returned_cases")
                 ), roundNumber, CAMPAIGN_ID, reviewerId, teamId
         );
     }
@@ -198,8 +275,9 @@ public class ReviewQueueRepository {
 
     private static String blankToNull(String value) { return value == null || value.isBlank() ? null : value.trim(); }
 
-    public record CampaignRow(String id, String name, String phase) {}
-    public record CaseContext(ReviewCase reviewCase, Submission submission, BigDecimal maximumScore) {
-        public BigDecimal selfScore() { return submission.selfScore(); }
+    private static int currentRound(String phase) {
+        return "ROUND_2".equals(phase) || "FINAL_REVIEW".equals(phase) || "PUBLISHED".equals(phase)
+                ? 2 : 1;
     }
+
 }

@@ -1,0 +1,24 @@
+{
+	email {$ACME_EMAIL}
+	admin off
+	grace_period 30s
+}
+
+{$APP_DOMAIN} {
+	encode zstd gzip
+
+	log {
+		output stdout
+		format json
+	}
+
+	reverse_proxy frontend:8080 {
+		health_uri /readyz
+		health_interval 30s
+		health_timeout 3s
+		health_status 200
+		fail_duration 30s
+		max_fails 2
+		lb_try_duration 5s
+	}
+}

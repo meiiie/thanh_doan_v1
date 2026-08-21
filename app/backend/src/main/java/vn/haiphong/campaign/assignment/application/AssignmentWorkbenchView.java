@@ -16,8 +16,17 @@ public record AssignmentWorkbenchView(
         ProgressView progress
 ) {
     public record UnitGroupView(String code, String name, int documentedUnitCount) {}
-    public record TeamView(String id, String name) {}
-    public record ReviewerView(String id, String displayName, String teamId) {}
+    public record TeamView(
+            String id,
+            String name,
+            String monitorId,
+            String monitorName,
+            int availableAssessorCount,
+            int lockedAssessorCount
+    ) {}
+    public record ReviewerView(
+            String id, String displayName, String teamId, boolean enabled, boolean teamMonitor
+    ) {}
     public record PlanView(
             String groupId,
             List<String> unitGroupCodes,

@@ -1,0 +1,235 @@
+<section class="team-directory-page">
+  <header class="directory-header">
+    <div>
+      <h1>Tổ & cán bộ</h1>
+      <p>Danh sách phục vụ phân công người chấm</p>
+    </div>
+    <span class="read-only-state">
+      <img src="icons/neko-interface-v1/eye.svg" width="20" height="20" alt="" aria-hidden="true" />
+      Chỉ xem
+    </span>
+  </header>
+
+  @if (directory(); as data) {
+    <div class="directory-toolbar">
+      <div class="directory-tabs" role="tablist" aria-label="Chế độ xem danh sách">
+        <button
+          type="button"
+          role="tab"
+          [attr.aria-selected]="view() === 'teams'"
+          [class.active]="view() === 'teams'"
+          (click)="setView('teams')"
+        >
+          Tổ chuyên môn
+        </button>
+        <button
+          type="button"
+          role="tab"
+          [attr.aria-selected]="view() === 'members'"
+          [class.active]="view() === 'members'"
+          (click)="setView('members')"
+        >
+          Cán bộ
+        </button>
+      </div>
+
+      <label class="directory-search">
+        <app-icon name="search" />
+        <span class="sr-only">Tìm Tổ hoặc cán bộ</span>
+        <input
+          type="search"
+          placeholder="Tìm Tổ hoặc cán bộ"
+          [value]="query()"
+          (input)="setQuery($event)"
+        />
+      </label>
+    </div>
+
+    @if (view() === 'teams') {
+      <div class="team-workspace">
+        <nav class="team-list" aria-label="Danh sách Tổ chuyên môn">
+          @for (team of filteredTeams(); track team.id) {
+            <button
+              type="button"
+              [class.active]="activeTeam()?.id === team.id"
+              [attr.aria-current]="activeTeam()?.id === team.id ? 'true' : null"
+              (click)="selectTeam(team.id)"
+            >
+              <span>
+                <strong>{{ team.name }}</strong>
+                <small>
+                  {{ team.members.length }} cán bộ <i aria-hidden="true">•</i>
+                  {{ team.monitor ? 1 : 0 }} SubAdmin1 <i aria-hidden="true">•</i>
+                  {{ team.assessors.length }} SubAdmin2
+                </small>
+              </span>
+              <app-icon name="chevron" />
+            </button>
+          } @empty {
+            <p class="empty-state">Không có Tổ hoặc cán bộ nào khớp nội dung tìm kiếm.</p>
+          }
+        </nav>
+
+        @if (activeTeam(); as team) {
+          <article class="team-detail" aria-labelledby="active-team-title">
+            <div class="team-detail__heading">
+              <h2 id="active-team-title">{{ team.name }}</h2>
+              <span>{{ team.members.length }} cán bộ</span>
+            </div>
+
+            <section class="member-section" aria-labelledby="team-monitor-title">
+              <h3 id="team-monitor-title">Theo dõi Tổ <span>(SubAdmin1)</span></h3>
+              @if (team.monitor; as monitor) {
+                <button
+                  type="button"
+                  class="member-row"
+                  [class.active]="selectedMemberId() === monitor.id"
+                  (click)="selectMember(monitor.id)"
+                >
+                  <span class="member-avatar" aria-hidden="true">{{ monitor.initials }}</span>
+                  <span class="member-identity">
+                    <strong>{{ monitor.displayName }}</strong>
+                    <small>
+                      SubAdmin1 <i aria-hidden="true">•</i> Theo dõi Tổ
+                      @if (!monitor.enabled) {
+                        <i aria-hidden="true">•</i> Tài khoản đã khóa
+                      }
+                    </small>
+                  </span>
+                  <span class="member-workload">
+                    <strong>{{ monitor.assignmentCount }} tiêu chí</strong>
+                    <small>{{ monitor.estimatedUnits }} lượt đơn vị</small>
+                  </span>
+                  <app-icon name="chevron" />
+                </button>
+              } @else {
+                <p class="empty-state">Tổ chưa có người theo dõi.</p>
+              }
+            </section>
+
+            <section class="member-section" aria-labelledby="team-staff-title">
+              <h3 id="team-staff-title">Cán bộ chấm <span>(SubAdmin2)</span></h3>
+              @for (member of team.assessors; track member.id) {
+                <button
+                  type="button"
+                  class="member-row"
+                  [class.active]="selectedMemberId() === member.id"
+                  (click)="selectMember(member.id)"
+                >
+                  <span class="member-avatar" aria-hidden="true">{{ member.initials }}</span>
+                  <span class="member-identity">
+                    <strong>{{ member.displayName }}</strong>
+                    <small>
+                      SubAdmin2 <i aria-hidden="true">•</i> Cán bộ chấm
+                      @if (!member.enabled) {
+                        <i aria-hidden="true">•</i> Tài khoản đã khóa
+                      }
+                    </small>
+                  </span>
+                  <span class="member-workload">
+                    <strong>{{ member.assignmentCount }} tiêu chí</strong>
+                    <small>{{ member.estimatedUnits }} lượt đơn vị</small>
+                  </span>
+                  <app-icon name="chevron" />
+                </button>
+              } @empty {
+                <p class="empty-state">Tổ chưa có SubAdmin2.</p>
+              }
+            </section>
+
+            <div class="team-workload" aria-label="Tổng khối lượng công việc của Tổ">
+              <span class="workload-icon"><app-icon name="document" /></span>
+              <span>
+                <small>Tổng workload</small>
+                <strong>
+                  {{ team.assignmentCount }} tiêu chí <i aria-hidden="true">•</i>
+                  {{ team.estimatedUnits }} lượt đơn vị dự kiến chấm
+                </strong>
+              </span>
+            </div>
+
+            @if (selectedMember(); as member) {
+              <section class="assignment-detail" aria-labelledby="member-assignment-title">
+                <div>
+                  <h3 id="member-assignment-title">Tiêu chí chấm của {{ member.displayName }}</h3>
+                  <span>{{ member.assignmentCount }} tiêu chí được giao trực tiếp</span>
+                </div>
+                <ul>
+                  @for (assignment of member.assignments; track assignment.groupId) {
+                    <li>
+                      <strong>{{ assignment.code }}</strong>
+                      <span>{{ assignment.title }}</span>
+                      <small>{{ assignment.estimatedUnits }} lượt đơn vị dự kiến</small>
+                    </li>
+                  } @empty {
+                    <li class="empty-state">Cán bộ này chưa được giao tiêu chí.</li>
+                  }
+                </ul>
+              </section>
+            }
+          </article>
+        } @else {
+          <p class="empty-state team-detail-empty">Chọn một Tổ để xem thành viên.</p>
+        }
+      </div>
+    } @else {
+      <section class="member-directory" aria-label="Danh sách cán bộ">
+        <div class="member-table-head" aria-hidden="true">
+          <span>Cán bộ</span><span>Tổ</span><span>Vai trò</span><span>Workload</span>
+        </div>
+        @for (member of filteredMembers(); track member.id) {
+          <button
+            type="button"
+            class="member-table-row"
+            [class.active]="selectedMemberId() === member.id"
+            (click)="selectMember(member.id)"
+          >
+            <span class="member-cell">
+              <span class="member-avatar" aria-hidden="true">{{ member.initials }}</span>
+              <strong>{{ member.displayName }}</strong>
+            </span>
+            <span>{{ member.teamName }}</span>
+            <span>
+              {{ member.teamMonitor ? 'SubAdmin1 · Theo dõi Tổ' : 'SubAdmin2 · Cán bộ chấm' }}
+              @if (!member.enabled) {
+                <small>Tài khoản đã khóa</small>
+              }
+            </span>
+            <span class="member-workload">
+              <strong>{{ member.assignmentCount }} tiêu chí</strong>
+              <small>{{ member.estimatedUnits }} lượt đơn vị dự kiến</small>
+            </span>
+          </button>
+        } @empty {
+          <p class="empty-state">Không có cán bộ nào khớp nội dung tìm kiếm.</p>
+        }
+
+        @if (selectedMember(); as member) {
+          <section class="assignment-detail assignment-detail--flat" aria-labelledby="flat-title">
+            <div>
+              <h2 id="flat-title">Tiêu chí chấm của {{ member.displayName }}</h2>
+              <span>{{ member.teamName }} · {{ member.assignmentCount }} tiêu chí</span>
+            </div>
+            <ul>
+              @for (assignment of member.assignments; track assignment.groupId) {
+                <li>
+                  <strong>{{ assignment.code }}</strong>
+                  <span>{{ assignment.title }}</span>
+                  <small>{{ assignment.estimatedUnits }} lượt đơn vị dự kiến</small>
+                </li>
+              } @empty {
+                <li class="empty-state">Cán bộ này chưa được giao tiêu chí.</li>
+              }
+            </ul>
+          </section>
+        }
+      </section>
+    }
+  } @else if (!error()) {
+    <p class="loading-state">Đang đọc roster và phân công hiện hành…</p>
+  }
+
+  @if (error()) {
+    <p class="error-state" role="alert">{{ error() }}</p>
+  }
+</section>

@@ -35,24 +35,25 @@ Badges below are permitted only when they count actionable work in the current c
 Purpose: toàn quyền vận hành và quản trị hệ thống. Superadmin có thể mở mọi workspace nhưng hành động luôn ghi đúng danh tính và audit.
 
 ```text
-Tổng quan hệ thống
+Tổng quan
+Bảng Tổng
+Phiên bản
+Điều hành chấm
+Kết quả & đối soát
+Tổ & cán bộ
 
-NỀN TẢNG
-  Chiến dịch
+QUẢN TRỊ HỆ THỐNG
   Cơ cấu tổ chức
   Tài khoản & quyền
-
-VẬN HÀNH HỆ THỐNG
-  Tích hợp
-  Nhật ký bảo mật
-  Sao lưu & phục hồi
 ```
 
-Navigation chính chỉ giữ Vòng đời, Bảng điểm nguồn và Tài khoản & quyền. Superadmin mở workspace Admin/Reviewer/Unit từ menu tài khoản khi cần; không nhân đôi toàn bộ sidebar. Quyền toàn cục không bỏ qua snapshot bất biến hoặc cơ chế hai người lập/duyệt.
+Superadmin dùng cùng ngôn ngữ điều hành chiến dịch với Admin để không phải đổi mental model khi kiểm tra thay. Hai destination quản trị hệ thống được tách thành group riêng. Quyền toàn cục không bỏ qua quyết định append-only, snapshot bất biến hoặc cơ chế hai người lập/duyệt.
 
 ### 3.2 Admin chiến dịch / campaign owner
 
 Purpose: remove bottlenecks and govern the workflow.
+
+Vertical slice hiện hành khóa sáu destination ổn định: `Tổng quan`, `Bảng Tổng`, `Phiên bản`, `Điều hành chấm`, `Kết quả & đối soát`, `Tổ & cán bộ`. `Điều hành chấm` là nơi mở hồ sơ/minh chứng/lịch sử quyết định theo tiêu chí; `Tổ & cán bộ` là projection chỉ đọc để Admin hiểu cơ cấu, tính khả dụng và workload trước khi phân công. CRUD roster vẫn thuộc Superadmin. `Phân bổ` và `Phân công` là command theo selection trong Bảng Tổng, không trở thành destination.
 
 ```text
 Tổng quan
@@ -77,19 +78,21 @@ Context rails:
 
 - Hồ sơ đơn vị: state filters → unit list.
 - Thẩm định: Vòng 1 / Giải trình / Vòng 2 → case list.
+- Điều hành chấm: tiêu chí → đơn vị/dòng chấm → hồ sơ, link minh chứng, người chốt và timeline quyết định.
 - Bảng tiêu chí: version → criterion groups.
 - Kết quả: group → unit/snapshot.
+- Tổ & cán bộ: Tổ → người theo dõi Tổ (SubAdmin1)/cán bộ chấm (SubAdmin2) → tiêu chí được giao trực tiếp; tab `Cán bộ` cung cấp danh sách phẳng để tìm nhanh.
 
-### 3.3 Specialist team lead
+### 3.3 Người theo dõi Tổ (SubAdmin1)
 
-Purpose: distribute work and resolve team-level exceptions.
+Purpose: theo dõi tiến độ và workload toàn Tổ; không mặc định phân công, duyệt, sửa điểm hoặc chấm thay.
 
 ```text
 Tổng quan tổ
 
 CÔNG VIỆC
   Hàng chờ của tổ        [action count]
-  Phân công chuyên viên  [unassigned count]
+  Tiến độ cán bộ chấm    [pending count]
   Giải trình             [action count]
   Đối soát điểm          [variance count]
 

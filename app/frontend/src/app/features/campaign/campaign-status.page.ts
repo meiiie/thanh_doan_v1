@@ -1,30 +1,8 @@
 import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import type { CampaignStatus } from '../../api/models';
 import { CampaignPhase } from '../../shared/domain-types';
-
-interface ReadinessItem {
-  readonly code: string;
-  readonly label: string;
-  readonly ready: boolean;
-  readonly detail: string;
-}
-
-interface CampaignStatus {
-  readonly id: string;
-  readonly name: string;
-  readonly phase: CampaignPhase;
-  readonly scorecardStatus: string;
-  readonly scorecardGroups: number;
-  readonly scorecardLines: number;
-  readonly documentedUnitGroups: number;
-  readonly documentedUnits: number;
-  readonly activeAccounts: number;
-  readonly submissions: number;
-  readonly reviewCases: number;
-  readonly finalResults: number;
-  readonly readiness: readonly ReadinessItem[];
-}
 
 @Component({
   selector: 'app-campaign-status-page',

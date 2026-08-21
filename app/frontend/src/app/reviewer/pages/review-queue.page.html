@@ -1,85 +1,173 @@
-<section class="review-page">
-  @if (view(); as data) {
-    <header>
-      <div>
-        <h1>Hàng chờ thẩm định</h1>
-        <p>{{ data.teamName }} · Chỉ hiển thị hồ sơ giao đúng cán bộ</p>
-      </div>
-      <span>{{
-        data.phase === 'ROUND_1'
-          ? 'Vòng 1 đang mở'
-          : data.phase === 'ROUND_2'
-            ? 'Vòng 2 đang mở'
-            : data.phase
-      }}</span>
-    </header>
+@if (view(); as data) {
+  <section class="review-page" [class.review-page--detail]="selectedCriterion()">
     @if (message()) {
-      <p class="message" role="status">{{ message() }}</p>
+      <p class="review-message" role="status">{{ message() }}</p>
     }
-    @if (data.cases.length) {
-      <div class="table-shell">
-        <div class="toolbar">
-          <strong>{{ data.cases.length }} hồ sơ</strong
-          ><small>So sánh tự chấm, minh chứng và điểm thẩm định trên cùng một hàng</small>
+
+    @if (selectedCriterion(); as criterion) {
+      <header class="review-header review-header--detail">
+        <div>
+          <button type="button" class="back-link" (click)="closeCriterion()">
+            <app-icon name="arrow-left" /> Công việc chấm
+          </button>
+          <h1>{{ criterion.code }} · {{ criterion.title }}</h1>
+          <p>
+            {{ criterion.expectedCases }} lượt đơn vị · {{ criterion.completedCases }} đã chấm ·
+            {{ remaining(criterion) }} còn lại
+          </p>
         </div>
-        <div class="table-scroll">
-          <table>
-            <thead>
-              <tr>
-                <th class="unit">Đơn vị</th>
-                <th>Nội dung</th>
-                <th class="self">Tự chấm</th>
-                <th class="proof">Minh chứng</th>
-                <th class="award">Được chấm</th>
-                <th class="reason">Lý do giảm</th>
-                <th class="confirm">Xác nhận</th>
-              </tr>
-            </thead>
-            <tbody>
-              @for (item of data.cases; track item.id) {
-                <tr [class.completed]="item.status === 'COMPLETED'">
-                  <td>
-                    <strong>{{ item.organizationName }}</strong
-                    ><span>{{ item.status === 'COMPLETED' ? 'Đã thẩm định' : 'Chờ xử lý' }}</span>
-                  </td>
-                  <td class="content">
-                    <b>{{ item.lineCode }} · {{ item.lineTitle }}</b>
-                    @if (item.summary) {
-                      <p>{{ item.summary }}</p>
-                    }
-                    @if (item.roundNumber === 2) {
-                      <div class="round-one-context">
-                        <strong>Vòng 1: {{ item.roundOneScore }}/{{ item.maximumScore }}</strong>
-                        @if (item.roundOneReason) {
-                          <p>{{ item.roundOneReason }}</p>
-                        }
-                        @if (item.explanationBody) {
-                          <p><b>Đơn vị giải trình:</b> {{ item.explanationBody }}</p>
-                        }
-                        @if (item.explanationEvidenceUrl) {
-                          <a
-                            [href]="item.explanationEvidenceUrl"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            >Mở minh chứng bổ sung ↗</a
-                          >
-                        }
-                      </div>
-                    }
-                    <small>{{ item.groupCode }} · tối đa {{ item.maximumScore }} điểm</small>
-                  </td>
-                  <td class="number">{{ item.selfScore }}</td>
-                  <td>
-                    @if (item.evidenceUrl) {
-                      <a [href]="item.evidenceUrl" target="_blank" rel="noopener noreferrer"
-                        >Mở minh chứng ↗</a
+      </header>
+
+      <div class="case-toolbar">
+        <div class="review-tabs" role="tablist" aria-label="Trạng thái lượt chấm">
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="caseTab() === 'pending'"
+            [class.active]="caseTab() === 'pending'"
+            (click)="setCaseTab('pending')"
+          >
+            Cần chấm <span>{{ caseCount('pending') }}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="caseTab() === 'completed'"
+            [class.active]="caseTab() === 'completed'"
+            (click)="setCaseTab('completed')"
+          >
+            Đã chấm <span>{{ caseCount('completed') }}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="caseTab() === 'adjusted'"
+            [class.active]="caseTab() === 'adjusted'"
+            (click)="setCaseTab('adjusted')"
+          >
+            Bị điều chỉnh <span>{{ caseCount('adjusted') }}</span>
+          </button>
+        </div>
+        <label class="review-search">
+          <app-icon name="search" />
+          <span class="sr-only">Tìm đơn vị</span>
+          <input
+            type="search"
+            placeholder="Tìm đơn vị"
+            [value]="caseSearch()"
+            (input)="setCaseSearch($event)"
+          />
+        </label>
+      </div>
+
+      <div class="review-workbench" [class.review-workbench--inspector]="selectedCase()">
+        <section class="case-table-shell" aria-label="Danh sách đơn vị cần chấm">
+          <div class="case-table-head" aria-hidden="true">
+            <span>Đơn vị</span><span>Tự chấm</span><span>Minh chứng</span><span>Thẩm định</span
+            ><span>Trạng thái</span>
+          </div>
+          @for (item of criterionCases(); track item.id) {
+            <button
+              type="button"
+              class="case-row"
+              [class.selected]="selectedCase()?.id === item.id"
+              (click)="selectCase(item)"
+            >
+              <span
+                ><strong>{{ item.organizationName }}</strong
+                ><small>{{ item.lineCode }}</small></span
+              >
+              <span class="number">{{ item.selfScore }} / {{ item.maximumScore }}</span>
+              <span>{{ item.evidenceUrl ? '1 liên kết' : 'Nội bộ' }}</span>
+              <span class="number"
+                >{{ item.awardedScore === null ? '—' : item.awardedScore }} /
+                {{ item.maximumScore }}</span
+              >
+              <span class="case-status" [class.complete]="item.status === 'COMPLETED'">
+                <i aria-hidden="true"></i
+                >{{ item.status === 'COMPLETED' ? 'Đã chấm' : 'Chưa chấm' }}
+              </span>
+            </button>
+          } @empty {
+            <div class="quiet-empty">
+              <app-icon name="document" />
+              <h2>Chưa có hồ sơ ở trạng thái này</h2>
+              <p>
+                {{ criterion.submittedCases }}/{{ criterion.expectedCases }} lượt đã được đơn vị
+                gửi.
+              </p>
+            </div>
+          }
+        </section>
+
+        @if (selectedCase(); as item) {
+          <aside class="case-inspector" [attr.aria-label]="'Chấm hồ sơ ' + item.organizationName">
+            <header>
+              <div>
+                <span>Đơn vị</span>
+                <h2>{{ item.organizationName }}</h2>
+              </div>
+              <button
+                type="button"
+                class="icon-button"
+                aria-label="Đóng hồ sơ"
+                (click)="closeCase()"
+              >
+                <app-icon name="close" />
+              </button>
+            </header>
+            <div class="inspector-body">
+              <section class="inspector-section">
+                <div class="section-title">
+                  <h3>Tự chấm</h3>
+                  <strong>{{ item.selfScore }} / {{ item.maximumScore }} điểm</strong>
+                </div>
+                @if (item.summary) {
+                  <p>{{ item.summary }}</p>
+                }
+              </section>
+              <section class="inspector-section">
+                <div class="section-title">
+                  <h3>Minh chứng</h3>
+                  <span>{{ item.evidenceUrl ? '1 liên kết' : 'Nội bộ' }}</span>
+                </div>
+                @if (item.evidenceUrl) {
+                  <a
+                    class="evidence-link"
+                    [href]="item.evidenceUrl"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <app-icon name="document" />
+                    <span
+                      ><strong>Mở minh chứng</strong><small>{{ item.evidenceUrl }}</small></span
+                    >
+                    <app-icon name="arrow" />
+                  </a>
+                } @else {
+                  <p>Tiêu chí được đối chiếu từ nguồn nội bộ của Thành đoàn.</p>
+                }
+                @if (item.roundNumber === 2 && item.explanationBody) {
+                  <div class="explanation-context">
+                    <strong>Giải trình phiên {{ item.explanationRevision }}</strong>
+                    <p>{{ item.explanationBody }}</p>
+                    @if (item.explanationEvidenceUrl) {
+                      <a
+                        [href]="item.explanationEvidenceUrl"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        >Mở minh chứng bổ sung</a
                       >
-                    } @else {
-                      <span>Không yêu cầu link</span>
                     }
-                  </td>
-                  <td>
-                    <input
+                  </div>
+                }
+              </section>
+              <section class="inspector-section assessment-form">
+                <h3>Thẩm định vòng {{ item.roundNumber }}</h3>
+                <label
+                  >Điểm
+                  <span class="score-input"
+                    ><input
                       type="number"
                       min="0"
                       [max]="item.maximumScore"
@@ -88,63 +176,168 @@
                       [disabled]="!editable(item)"
                       (input)="setScore(item, $event)"
                       [attr.aria-label]="'Điểm thẩm định ' + item.lineCode"
-                    />
-                  </td>
-                  <td>
-                    <textarea
-                      rows="2"
-                      [placeholder]="
-                        item.roundNumber === 1
-                          ? 'Lý do giảm hoặc lý do trả hồ sơ'
-                          : 'Kết luận sau giải trình'
-                      "
-                      [value]="draft(item).reason"
-                      [disabled]="!editable(item)"
-                      (input)="setReason(item, $event)"
-                      [attr.aria-label]="'Lý do ' + item.lineCode"
-                    ></textarea>
-                  </td>
-                  <td>
-                    <label class="checked"
-                      ><input
-                        type="checkbox"
-                        [checked]="draft(item).evidenceChecked"
-                        [disabled]="!editable(item)"
-                        (change)="setChecked(item, $event)"
-                      /><span>Đã kiểm tra</span></label
-                    ><button
-                      type="button"
-                      [disabled]="!editable(item) || busyCase() === item.id"
-                      (click)="complete(item)"
-                    >
-                      Chốt vòng {{ item.roundNumber }}
-                    </button>
-                    @if (item.roundNumber === 1 && editable(item)) {
-                      <button
-                        type="button"
-                        class="return-button"
-                        [disabled]="busyCase() === item.id"
-                        (click)="returnToUnit(item)"
-                      >
-                        Trả bổ sung
-                      </button>
-                    }
-                    @if (item.decidedByName) {
-                      <small>{{ item.decidedByName }}</small>
-                    }
-                  </td>
-                </tr>
+                    /><em>/ {{ item.maximumScore }} điểm</em></span
+                  >
+                </label>
+                <label
+                  >Lý do điều chỉnh
+                  <textarea
+                    rows="4"
+                    [value]="draft(item).reason"
+                    [disabled]="!editable(item)"
+                    (input)="setReason(item, $event)"
+                    placeholder="Bắt buộc khi điểm thấp hơn tự chấm"
+                  ></textarea>
+                </label>
+                <label class="evidence-check"
+                  ><input
+                    type="checkbox"
+                    [checked]="draft(item).evidenceChecked"
+                    [disabled]="!editable(item)"
+                    (change)="setChecked(item, $event)"
+                  />
+                  Đã kiểm tra đủ minh chứng</label
+                >
+              </section>
+            </div>
+            <footer>
+              @if (item.roundNumber === 1) {
+                <button
+                  type="button"
+                  class="button button--secondary"
+                  [disabled]="!editable(item) || busyCase() === item.id"
+                  (click)="returnToUnit(item)"
+                >
+                  Trả bổ sung
+                </button>
               }
-            </tbody>
-          </table>
-        </div>
+              <button
+                type="button"
+                class="button button--primary"
+                [disabled]="!editable(item) || busyCase() === item.id"
+                (click)="complete(item)"
+              >
+                Chốt vòng {{ item.roundNumber }}
+              </button>
+            </footer>
+          </aside>
+        }
       </div>
     } @else {
-      <div class="empty">
-        <span aria-hidden="true">✓</span>
-        <h2>Chưa có hồ sơ được giao</h2>
-        <p>Hồ sơ chỉ xuất hiện sau khi đơn vị gửi và assignment khớp cả Tổ lẫn cán bộ phụ trách.</p>
+      <header class="review-header">
+        <div>
+          <h1>Công việc chấm</h1>
+          <p>{{ data.criteria.length }} tiêu chí được giao · {{ totalExpected() }} lượt đơn vị</p>
+        </div>
+      </header>
+
+      <div class="criterion-toolbar">
+        <div class="review-tabs" role="tablist" aria-label="Trạng thái tiêu chí">
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="activeTab() === 'pending'"
+            [class.active]="activeTab() === 'pending'"
+            (click)="setCriterionTab('pending')"
+          >
+            Cần chấm <span>{{ countFor('pending') }}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="activeTab() === 'completed'"
+            [class.active]="activeTab() === 'completed'"
+            (click)="setCriterionTab('completed')"
+          >
+            Đã chấm <span>{{ countFor('completed') }}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="activeTab() === 'adjusted'"
+            [class.active]="activeTab() === 'adjusted'"
+            (click)="setCriterionTab('adjusted')"
+          >
+            Bị điều chỉnh <span>{{ countFor('adjusted') }}</span>
+          </button>
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="activeTab() === 'recheck'"
+            [class.active]="activeTab() === 'recheck'"
+            (click)="setCriterionTab('recheck')"
+          >
+            Cần chấm lại <span>{{ countFor('recheck') }}</span>
+          </button>
+        </div>
+        <label class="review-search"
+          ><app-icon name="search" /><span class="sr-only">Tìm tiêu chí</span
+          ><input
+            type="search"
+            placeholder="Tìm tiêu chí"
+            [value]="search()"
+            (input)="setSearch($event)"
+        /></label>
       </div>
+
+      <section class="criterion-list" aria-label="Tiêu chí được giao">
+        @for (item of filteredCriteria(); track item.groupId) {
+          <button type="button" class="criterion-row" (click)="openCriterion(item)">
+            <span class="criterion-icon"><app-icon name="document" /></span>
+            <span class="criterion-copy"
+              ><strong>{{ item.code }} · {{ item.title }}</strong
+              ><small
+                >{{ item.expectedCases }} lượt đơn vị · {{ item.completedCases }} đã chấm ·
+                {{ remaining(item) }} còn lại</small
+              ></span
+            >
+            <span class="criterion-progress"
+              ><i><b [style.width.%]="percent(item)"></b></i
+              ><small
+                >{{ item.completedCases }} / {{ item.expectedCases }} ({{ percent(item) }}%)</small
+              ></span
+            >
+            <app-icon name="chevron" />
+          </button>
+        } @empty {
+          <div class="quiet-empty">
+            <app-icon name="document" />
+            <h2>Không có tiêu chí ở trạng thái này</h2>
+            <p>Thử trạng thái khác hoặc xóa từ khóa tìm kiếm.</p>
+          </div>
+        }
+      </section>
+
+      @if (data.teamOverview; as overview) {
+        <details class="team-monitor">
+          <summary>
+            <span
+              ><strong>Theo dõi Tổ {{ data.teamName }}</strong
+              ><small
+                >{{ overview.completedCases }}/{{ overview.expectedCases }} lượt đã hoàn tất</small
+              ></span
+            ><app-icon name="chevron-down" />
+          </summary>
+          <div class="team-monitor-grid">
+            @for (member of overview.members; track member.id) {
+              <article>
+                <strong>{{ member.displayName }}</strong>
+                <span>{{
+                  member.teamMonitor ? 'Theo dõi Tổ (SubAdmin1)' : 'Cán bộ chấm (SubAdmin2)'
+                }}</span>
+                <small
+                  >{{ member.completedCases }}/{{ member.expectedCases }} lượt ·
+                  {{ member.assignedCriteria }} tiêu chí</small
+                >
+              </article>
+            }
+          </div>
+          <p class="team-monitor-note">
+            Quyền theo dõi chỉ hiển thị tiến độ của Tổ; không cho phép chấm thay hoặc sửa quyết định
+            của cán bộ khác.
+          </p>
+        </details>
+      }
     }
-  }
-</section>
+  </section>
+}

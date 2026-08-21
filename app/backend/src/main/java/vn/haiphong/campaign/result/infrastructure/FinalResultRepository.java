@@ -13,11 +13,10 @@ import org.springframework.stereotype.Repository;
 import vn.haiphong.campaign.lifecycle.application.OptimisticConflict;
 import vn.haiphong.campaign.lifecycle.domain.FinalResult;
 import vn.haiphong.campaign.lifecycle.domain.FinalResultStatus;
-import vn.haiphong.campaign.result.application.FinalResultView;
+import vn.haiphong.campaign.result.application.FinalResultGateway;
 
 @Repository
-public class FinalResultRepository {
-    public static final String CAMPAIGN_ID = "campaign-summer-2026";
+public class FinalResultRepository implements FinalResultGateway {
     private final JdbcTemplate jdbc;
 
     public FinalResultRepository(JdbcTemplate jdbc) {
@@ -43,10 +42,15 @@ public class FinalResultRepository {
         return value == null ? 0 : value;
     }
 
-    public int completedRoundTwo() {
+    public int resolvedTasks() {
         Integer value = jdbc.queryForObject(
                 "select count(*) from review_case rc join submission s on s.id = rc.submission_id " +
-                        "where s.campaign_id = ? and rc.round2_status = 'COMPLETED'",
+                        "join review_decision r1 on r1.review_case_id = rc.id and r1.round_number = 1 " +
+                        "and r1.revision = (select max(d.revision) from review_decision d " +
+                        "where d.review_case_id = rc.id and d.round_number = 1) " +
+                        "where s.campaign_id = ? and rc.round1_status = 'COMPLETED' and " +
+                        "((r1.awarded_score >= s.self_score and rc.round2_status = 'NOT_OPEN') or " +
+                        "(r1.awarded_score < s.self_score and rc.round2_status = 'COMPLETED'))",
                 Integer.class, CAMPAIGN_ID
         );
         return value == null ? 0 : value;
@@ -64,10 +68,15 @@ public class FinalResultRepository {
                         "o.unit_group_code, l.id line_id, g.code group_code, l.code line_code, l.title line_title, " +
                         "g.section, l.maximum_score, s.self_score, r1.awarded_score round1_score, " +
                         "r1.reason round1_reason, ex.body explanation_body, ex.evidence_url explanation_url, " +
-                        "r2.awarded_score round2_score, r2.reason round2_reason, r2.awarded_score effective_score, " +
+                        "case when r1.awarded_score < s.self_score then r2.awarded_score end round2_score, " +
+                        "case when r1.awarded_score < s.self_score then r2.reason end round2_reason, " +
+                        "case when r1.awarded_score < s.self_score then r2.awarded_score " +
+                        "else r1.awarded_score end effective_score, " +
                         "s.evidence_url submission_evidence_url, s.summary submission_summary, s.revision submission_revision, " +
                         "r1.decided_by round1_by, a1.display_name round1_by_name, r1.decided_at round1_at, " +
-                        "r2.decided_by round2_by, a2.display_name round2_by_name, r2.decided_at round2_at " +
+                        "case when r1.awarded_score < s.self_score then r2.decided_by end round2_by, " +
+                        "case when r1.awarded_score < s.self_score then a2.display_name end round2_by_name, " +
+                        "case when r1.awarded_score < s.self_score then r2.decided_at end round2_at " +
                         "from submission s join organization o on o.id = s.organization_id " +
                         "join scorecard_line l on l.id = s.line_id join scorecard_group g on g.id = l.group_id " +
                         "join review_case rc on rc.submission_id = s.id " +
@@ -77,11 +86,13 @@ public class FinalResultRepository {
                         "join app_account a1 on a1.id = r1.decided_by " +
                         "left join explanation_revision ex on ex.review_case_id = rc.id and ex.revision = " +
                         "(select max(e.revision) from explanation_revision e where e.review_case_id = rc.id) " +
-                        "join review_decision r2 on r2.review_case_id = rc.id and r2.round_number = 2 " +
+                        "left join review_decision r2 on r2.review_case_id = rc.id and r2.round_number = 2 " +
                         "and r2.revision = (select max(d2.revision) from review_decision d2 " +
                         "where d2.review_case_id = rc.id and d2.round_number = 2) " +
-                        "join app_account a2 on a2.id = r2.decided_by " +
-                        "where s.campaign_id = ? and rc.round1_status = 'COMPLETED' and rc.round2_status = 'COMPLETED' " +
+                        "left join app_account a2 on a2.id = r2.decided_by " +
+                        "where s.campaign_id = ? and rc.round1_status = 'COMPLETED' and " +
+                        "((r1.awarded_score >= s.self_score and rc.round2_status = 'NOT_OPEN') or " +
+                        "(r1.awarded_score < s.self_score and rc.round2_status = 'COMPLETED' and r2.id is not null)) " +
                         "order by o.code, g.display_order, l.display_order",
                 (rs, row) -> new SnapshotLine(
                         rs.getString("organization_id"), rs.getString("organization_code"),
@@ -201,12 +212,19 @@ public class FinalResultRepository {
         return rows.stream().findFirst();
     }
 
-    public List<FinalResultView.UnitResultView> units(String resultId) {
+    public int snapshotTaskCount(String resultId) {
+        Integer value = jdbc.queryForObject(
+                "select count(*) from final_result_line where final_result_id = ?", Integer.class, resultId
+        );
+        return value == null ? 0 : value;
+    }
+
+    public List<UnitSnapshot> units(String resultId) {
         return jdbc.query(
                 "select organization_id, organization_code, organization_name, unit_group_code, " +
                         "applicable_core_maximum, core_score, bonus_raw_score, bonus_capped_score, total_score, completion_rate " +
                         "from final_result_unit where final_result_id = ? order by total_score desc, organization_name",
-                (rs, row) -> new FinalResultView.UnitResultView(
+                (rs, row) -> new UnitSnapshot(
                         rs.getString("organization_id"), rs.getString("organization_code"),
                         rs.getString("organization_name"), rs.getString("unit_group_code"),
                         rs.getBigDecimal("applicable_core_maximum"), rs.getBigDecimal("core_score"),
@@ -284,22 +302,4 @@ public class FinalResultRepository {
         );
     }
 
-    public record CampaignRow(String id, String name, String phase, int version) {}
-    public record ResultHeader(FinalResult result, String preparedByName, OffsetDateTime preparedAt,
-                               String approvedByName, OffsetDateTime approvedAt,
-                               String publishedByName, OffsetDateTime publishedAt) {}
-    public record UnitSnapshot(String organizationId, String organizationCode, String organizationName,
-                               String unitGroupCode, BigDecimal applicableCoreMaximum, BigDecimal coreScore,
-                               BigDecimal bonusRawScore, BigDecimal bonusCappedScore, BigDecimal totalScore,
-                               BigDecimal completionRate) {}
-    public record SnapshotLine(
-            String organizationId, String organizationCode, String organizationName, String unitGroupCode,
-            String lineId, String groupCode, String lineCode, String lineTitle, String section,
-            BigDecimal maximumScore, BigDecimal selfScore, BigDecimal roundOneScore, String roundOneReason,
-            String explanationBody, String explanationEvidenceUrl, BigDecimal roundTwoScore,
-            String roundTwoReason, BigDecimal effectiveScore, String submissionEvidenceUrl,
-            String submissionSummary, int submissionRevision, String roundOneDecidedBy,
-            String roundOneDecidedByName, OffsetDateTime roundOneDecidedAt, String roundTwoDecidedBy,
-            String roundTwoDecidedByName, OffsetDateTime roundTwoDecidedAt
-    ) {}
 }

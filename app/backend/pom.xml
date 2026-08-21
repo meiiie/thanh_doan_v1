@@ -12,10 +12,10 @@
   </parent>
 
   <groupId>vn.haiphong</groupId>
-  <artifactId>campaign-workflow</artifactId>
+  <artifactId>neko-doan-backend</artifactId>
   <version>0.1.0-SNAPSHOT</version>
-  <name>campaign-workflow</name>
-  <description>Evidence-backed workflow for the 2026 campaign scoring lifecycle</description>
+  <name>Neko Đoàn backend</name>
+  <description>Evidence-backed workflow for Neko Đoàn campaign scoring</description>
 
   <properties>
     <java.version>21</java.version>

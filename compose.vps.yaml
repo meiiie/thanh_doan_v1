@@ -1,0 +1,104 @@
+services:
+  database:
+    image: ${POSTGRES_IMAGE:?Set POSTGRES_IMAGE to an immutable digest}
+    environment: !override
+      POSTGRES_DB: ${POSTGRES_DB:-campaign}
+      POSTGRES_USER: ${POSTGRES_USER:-campaign}
+      POSTGRES_PASSWORD_FILE: /run/secrets/POSTGRES_PASSWORD
+    secrets:
+      - source: database_password
+        target: POSTGRES_PASSWORD
+    ports: !reset []
+    cpus: ${DATABASE_CPU_LIMIT:-1.0}
+    mem_limit: ${DATABASE_MEMORY_LIMIT:-1536m}
+    pids_limit: 256
+    logging: &production_logging
+      driver: local
+      options:
+        max-size: 10m
+        max-file: "5"
+        compress: "true"
+
+  backend:
+    image: ${BACKEND_IMAGE:?Set BACKEND_IMAGE to an immutable digest}
+    build: !reset null
+    environment: !override
+      SPRING_PROFILES_ACTIVE: prod
+      CAMPAIGN_DB_URL: jdbc:postgresql://database:5432/${POSTGRES_DB:-campaign}
+      CAMPAIGN_DB_USER: ${POSTGRES_USER:-campaign}
+      CAMPAIGN_DB_POOL_MAX: ${CAMPAIGN_DB_POOL_MAX:-10}
+      CAMPAIGN_DB_POOL_MIN: ${CAMPAIGN_DB_POOL_MIN:-2}
+      SPRING_CONFIG_IMPORT: configtree:/run/secrets/
+      APP_BOOTSTRAP_ENABLED: ${APP_BOOTSTRAP_ENABLED:-false}
+      APP_BOOTSTRAP_USERNAME: ${APP_BOOTSTRAP_USERNAME:-superadmin}
+      APP_BOOTSTRAP_DISPLAY_NAME: ${APP_BOOTSTRAP_DISPLAY_NAME:-Quản trị hệ thống}
+      APP_SESSION_COOKIE_SECURE: "true"
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError}
+    secrets:
+      - source: database_password
+        target: CAMPAIGN_DB_PASSWORD
+      - source: bootstrap_password
+        target: APP_BOOTSTRAP_PASSWORD
+    ports: !reset []
+    cpus: ${BACKEND_CPU_LIMIT:-1.0}
+    mem_limit: ${BACKEND_MEMORY_LIMIT:-1280m}
+    pids_limit: 256
+    cap_drop: [ALL]
+    logging: *production_logging
+
+  frontend:
+    image: ${FRONTEND_IMAGE:?Set FRONTEND_IMAGE to an immutable digest}
+    build: !reset null
+    ports: !reset []
+    cpus: ${FRONTEND_CPU_LIMIT:-0.50}
+    mem_limit: ${FRONTEND_MEMORY_LIMIT:-192m}
+    pids_limit: 128
+    cap_drop: [ALL]
+    logging: *production_logging
+
+  edge:
+    image: ${EDGE_IMAGE:?Set EDGE_IMAGE to an immutable digest}
+    depends_on:
+      frontend:
+        condition: service_healthy
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?Set APP_DOMAIN to the public DNS name}
+      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL for certificate notices}
+    ports:
+      - target: 80
+        published: 80
+        protocol: tcp
+        mode: host
+      - target: 443
+        published: 443
+        protocol: tcp
+        mode: host
+      - target: 443
+        published: 443
+        protocol: udp
+        mode: host
+    volumes:
+      - ./ops/vps/Caddyfile:/etc/caddy/Caddyfile:ro
+      - neko_doan_caddy_data:/data
+      - neko_doan_caddy_config:/config
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
+    restart: unless-stopped
+    stop_grace_period: 30s
+    networks: [edge]
+    security_opt: ["no-new-privileges:true"]
+    cpus: ${EDGE_CPU_LIMIT:-0.50}
+    mem_limit: ${EDGE_MEMORY_LIMIT:-192m}
+    pids_limit: 128
+    logging: *production_logging
+
+secrets:
+  database_password:
+    file: ${NEKO_SECRETS_DIR:?Set NEKO_SECRETS_DIR}/CAMPAIGN_DB_PASSWORD
+  bootstrap_password:
+    file: ${NEKO_SECRETS_DIR:?Set NEKO_SECRETS_DIR}/APP_BOOTSTRAP_PASSWORD
+
+volumes:
+  neko_doan_caddy_data:
+  neko_doan_caddy_config:

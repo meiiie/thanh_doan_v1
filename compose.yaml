@@ -1,4 +1,4 @@
-name: campaign-workflow
+name: neko-doan
 
 services:
   database:
@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-campaign}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
-      - campaign_postgres_data:/var/lib/postgresql
+      - neko_doan_postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
@@ -79,7 +79,7 @@ services:
     security_opt: ["no-new-privileges:true"]
 
 volumes:
-  campaign_postgres_data:
+  neko_doan_postgres_data:
 
 networks:
   edge:

@@ -1,0 +1,122 @@
+:root {
+  color-scheme: light;
+  font:
+    100%/1.5 system-ui,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
+  font-synthesis: none;
+  --brand: #0756c9;
+  --brand-hover: #0649aa;
+  --brand-pressed: #053f92;
+  --brand-tint: #edf5ff;
+  --ink: #111827;
+  --ink-2: #374151;
+  --muted: #6b7280;
+  --subtle: #667085;
+  --page: #f8fafc;
+  --surface: #ffffff;
+  --surface-subtle: #f9fafb;
+  --neutral-050: #f9fafb;
+  --neutral-100: #f3f4f6;
+  --border: #e5e7eb;
+  --border-strong: #d1d5db;
+  --success: #047857;
+  --success-tint: #ecfdf5;
+  --warning: #92400e;
+  --warning-tint: #fffbeb;
+  --danger: #b91c1c;
+  --danger-tint: #fef2f2;
+  --info: #1d4ed8;
+  --info-tint: #eff6ff;
+  --focus: rgb(7 86 201 / 20%);
+  --scrim: rgb(17 24 39 / 40%);
+  --shadow-overlay: 0 16px 48px rgb(17 24 39 / 12%);
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --sidebar-width: 256px;
+  --topbar-height: 64px;
+  --radius-control: 8px;
+  --radius-panel: 12px;
+  --radius-overlay: 16px;
+  --motion-fast: 120ms;
+  --motion-normal: 180ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
+html {
+  min-width: 320px;
+  background: var(--page);
+}
+body {
+  min-width: 320px;
+  min-height: 100dvh;
+  margin: 0;
+  color: var(--ink);
+  background: var(--page);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+button {
+  cursor: pointer;
+}
+button:disabled {
+  cursor: not-allowed;
+}
+a {
+  color: var(--brand);
+}
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+h1 {
+  margin-bottom: var(--space-2);
+  font-size: 28px;
+  line-height: 36px;
+  letter-spacing: -0.018em;
+  text-wrap: balance;
+}
+h2 {
+  font-size: 23px;
+  line-height: 32px;
+  letter-spacing: -0.012em;
+}
+h3 {
+  font-size: 19px;
+  line-height: 28px;
+  letter-spacing: -0.008em;
+}
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 3px var(--focus);
+}

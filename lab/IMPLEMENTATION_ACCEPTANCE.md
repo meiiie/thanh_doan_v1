@@ -1,6 +1,21 @@
 # Nghiệm thu lát cắt vòng đời đầy đủ — local
 
-Cập nhật: 15/08/2026. Phạm vi này chỉ chạy local; không deploy, không sửa website đang vận hành và không di chuyển dữ liệu production.
+Cập nhật: 20/08/2026. Phạm vi này chỉ chạy local; không deploy, không sửa website đang vận hành và không di chuyển dữ liệu production.
+
+## Xác thực và phiên
+
+| Gate | Quy tắc đã thực thi | Bằng chứng tự động |
+| --- | --- | --- |
+| Identifier-first | Bước tên đăng nhập không gọi endpoint dò tài khoản; lỗi xác thực luôn chung | frontend unit + browser smoke |
+| Credential | BCrypt cost 12; 15–72 ký tự; dummy hash cho username không tồn tại | `SystemApiIntegrationTest` |
+| Session | Cookie server-side, session replacement khi login, idle 30 phút và absolute 12 giờ | integration + browser role smoke |
+| CSRF | Login, đổi mật khẩu, logout và mọi business write cần token cookie/header; frontend lấy token mới sau session replacement | Spring integration + Angular unit + browser role smoke |
+| First login | Tài khoản mới bị chặn API nghiệp vụ đến khi đổi mật khẩu bằng current password | `SystemApiIntegrationTest` |
+| Logout | Audit + invalidate session + xóa session/CSRF cookie và state Angular | integration + browser smoke |
+| Role/scope | Superadmin/Admin/Reviewer/Unit có route riêng; server deny-by-default và kiểm resource scope | workflow integration |
+| HTTPS local | TLS 1.2/1.3, Secure/HttpOnly/SameSite cookie, HSTS/CSP | secure-local runtime probe |
+
+Hồ sơ đóng và production gates nằm tại `modules/IDENTITY_ACCESS.md`. Gate này chốt local/UAT, không xác nhận AAL2 hoặc production authentication khi chưa có MFA/IdP và recovery.
 
 ## Vòng đời nghiệp vụ
 
@@ -19,7 +34,7 @@ Tổng điểm một đơn vị được cố định theo snapshot: `điểm c�
 
 ## Tải và khả năng truy cập
 
-- `CapacityLoadIntegrationTest` tạo chính xác `134 đơn vị × 55 dòng = 7.370` dòng kết quả và `14.740` quyết định hai vòng trên PostgreSQL thật; budget local: snapshot dưới 20 giây, export dưới 10 giây.
+- `CapacityLoadIntegrationTest` tạo chính xác `134 đơn vị × 55 dòng = 7.370` dòng kết quả và `14.740` quyết định hai vòng trên PostgreSQL thật; budget local: snapshot dưới 20 giây, export dưới 10 giây, 20 mẫu đọc kết quả sau 3 warm-up có p95 dưới 250 ms. Baseline full-check cuối ngày 20/08/2026: p50 17,41 ms, p95 22,34 ms, max 29,91 ms, phản hồi 38.377 byte. Test luôn in dòng `PERF_BASELINE` để lưu làm release evidence.
 - Browser smoke dùng `axe-core` với bộ rule WCAG 2.0 A/AA, WCAG 2.1 A/AA và WCAG 2.2 AA trên đăng nhập, vòng đời, bảng điểm, tài khoản, cơ cấu và kết quả.
 - Harness kiểm tra keyboard focus ban đầu, skip-link đi tới vùng nội dung, guard, logout, desktop/mobile và không có page/console error ngoài 401 được chủ động thử.
 - Đây là cổng hồi quy tự động, không thay thế phiên nghiệm thu có người dùng bàn phím và trình đọc màn hình trên thiết bị thật trước production.
@@ -39,5 +54,5 @@ Tổng điểm một đơn vị được cố định theo snapshot: `điểm c�
 $env:ADMIN_BASE_URL='https://127.0.0.1:4319'
 $env:ADMIN_PASSWORD=(Get-Content -Raw '.tmp\secure-local-superadmin.password').Trim()
 python .\app\frontend\e2e\admin-smoke.py
-.\ops\backup-offhost-drill.ps1 -Destination '<đích-ngoài-workspace>' -ComposeProject campaign-secure-local -ComposeFiles @('compose.yaml','compose.secure-local.yaml')
+.\ops\backup-offhost-drill.ps1 -OffHostDestination '<đích-ngoài-workspace>' -ComposeProject neko-doan-secure-local -ComposeFiles @('compose.yaml','compose.secure-local.yaml')
 ```

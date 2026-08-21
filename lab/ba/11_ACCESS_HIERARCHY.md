@@ -20,7 +20,8 @@ Nếu giữ chung, mọi Admin chiến dịch có vẻ như được quyền v�
 | --- | --- | --- | --- |
 | **Superadmin hệ thống** | Toàn hệ thống | tạo/đóng không gian chiến dịch; quản lý tổ chức, tài khoản và grant; vận hành tích hợp, bảo mật, sao lưu | sửa điểm, chấm hồ sơ, ghi đè kết quả hoặc ban hành thay Admin chiến dịch |
 | **Admin chiến dịch** | Một hoặc nhiều `campaignId` | cấu hình bảng điểm/phạm vi; phân công Tổ/cán bộ; theo dõi hồ sơ; nhận kết quả; thực hiện quyền nâng cao được cấp riêng | tài khoản toàn hệ thống, tích hợp, nhật ký bảo mật, sao lưu, chiến dịch ngoài grant |
-| **Tổ trưởng/Cán bộ phụ trách** | campaign + team + assignment | đọc minh chứng và ghi quyết định trong hạng mục được giao | cấu hình bảng điểm, quyền hệ thống, hồ sơ ngoài assignment |
+| **SubAdmin1 · Theo dõi Tổ** | campaign + team | xem workload, assignment và tiến độ toàn Tổ; nếu có assignment riêng thì chấm như một assessor | duyệt/sửa/chấm thay người khác, cấu hình bảng điểm, hồ sơ ngoài Tổ/assignment |
+| **SubAdmin2 · Cán bộ chấm** | campaign + team + assignment | đọc minh chứng và ghi quyết định trong tiêu chí được giao | xem case ngoài assignment, duyệt/sửa điểm của cán bộ khác, cấu hình hệ thống |
 | **Tài khoản đơn vị** | campaign + organization | tự chấm, nhập minh chứng, giải trình trong hồ sơ của đơn vị | hồ sơ đơn vị khác, điểm thẩm định, cấu hình chiến dịch |
 
 Bốn khối tiếp tục là phạm vi tổ chức, không phải bốn role mới.

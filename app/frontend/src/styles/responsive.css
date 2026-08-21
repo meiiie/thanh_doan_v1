@@ -1,0 +1,108 @@
+@media (max-width: 1099px) {
+  .data-layout,
+  .two-column {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .detail-panel {
+    position: static;
+  }
+}
+@media (max-width: 1279px) and (min-width: 960px) {
+  .session-warning {
+    left: 72px;
+  }
+}
+@media (max-width: 799px) {
+  .summary-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .summary-item:nth-child(3) {
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+  .summary-item:nth-child(4) {
+    border-top: 1px solid var(--border);
+  }
+  .task-row {
+    grid-template-columns: 24px minmax(0, 1fr) 44px;
+  }
+  .task-owner,
+  .task-time {
+    display: none;
+  }
+  .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 959px) {
+  .session-warning {
+    left: 0;
+  }
+}
+@media (max-width: 639px) {
+  .page-header {
+    min-height: 0;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
+    padding-bottom: var(--space-6);
+  }
+  .page-header--compact .page-header {
+    padding-bottom: var(--space-4);
+  }
+  .page-header--compact h1 {
+    font-size: 24px;
+    line-height: 30px;
+  }
+  .page-header__actions {
+    justify-content: flex-start;
+  }
+  .page-header__actions .button {
+    flex: 1 1 auto;
+  }
+  .section {
+    padding-block: var(--space-8);
+  }
+  .section-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .summary-strip {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .summary-item + .summary-item {
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+  .toolbar {
+    align-items: stretch;
+  }
+  .toolbar .search-field,
+  .toolbar .input:not(.search-field .input) {
+    width: 100%;
+  }
+  .detail-list > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+  .session-warning {
+    justify-content: space-between;
+    padding-inline: var(--space-3);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+@media (prefers-contrast: more) {
+  :root {
+    --border: #9aa8b8;
+    --border-strong: #66778a;
+  }
+}

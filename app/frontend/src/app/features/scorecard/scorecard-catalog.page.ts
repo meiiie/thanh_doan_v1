@@ -8,140 +8,60 @@ import {
   signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
+import type { AssignmentPlan, AssignmentWorkbench, ScorecardCatalog } from '../../api/models';
 import { problemDetail } from '../../core/problem-detail';
-import { CampaignPhase, EvidencePolicy } from '../../shared/domain-types';
+import { AppIconComponent } from '../../shared/app-icon.component';
+import { CampaignPhase } from '../../shared/domain-types';
 import { targetValue } from '../../shared/form-events';
+import { buildTeamDirectory } from '../organization/team-directory';
+import {
+  advanceEndpoint,
+  assignmentIsReady,
+  campaignPhaseLabel,
+  scorecardGroupRows,
+  type AdvanceEndpoint,
+  type ScorecardGroupRow,
+  type ScorecardSection,
+} from './scorecard-workbench';
 
-interface ScorecardLine {
-  readonly id: string;
-  readonly code: string;
-  readonly title: string;
-  readonly requirement: string;
-  readonly evidenceHint: string;
-  readonly reportTemplate: string;
-  readonly evidencePolicy: EvidencePolicy;
-  readonly maximumScore: number;
-  readonly sourceSheet: string;
-  readonly sourceRow: number;
-}
-
-interface ScorecardGroup {
-  readonly id: string;
-  readonly code: string;
-  readonly title: string;
-  readonly section: 'CORE' | 'BONUS';
-  readonly lines: readonly ScorecardLine[];
-}
-
-interface ScorecardCatalog {
-  readonly id: string;
-  readonly campaignName: string;
-  readonly title: string;
-  readonly audience: string;
-  readonly status: string;
-  readonly source: {
-    readonly fileName: string;
-    readonly sha256: string;
-    readonly receivedScope: string;
-  };
-  readonly policy: {
-    readonly coreMaximum: number;
-    readonly bonusRawMaximum: number;
-    readonly bonusCap: number;
-    readonly overallMaximum: number;
-    readonly groupCount: number;
-    readonly lineCount: number;
-  };
-  readonly unitGroups: readonly {
-    readonly code: string;
-    readonly name: string;
-    readonly documentedUnitCount: number;
-  }[];
-  readonly groups: readonly ScorecardGroup[];
-}
-
-interface TableRow {
-  readonly groupId: string;
-  readonly groupCode: string;
-  readonly groupTitle: string;
-  readonly section: 'CORE' | 'BONUS';
-  readonly firstInGroup: boolean;
-  readonly visibleLineCount: number;
-  readonly line: ScorecardLine;
-}
-
-interface AssignmentPlan {
-  readonly groupId: string;
-  readonly unitGroupCodes: readonly string[];
-  readonly teamId: string | null;
-  readonly reviewerId: string | null;
-  readonly version: number;
-  readonly expectedTasks: number;
-  readonly submittedTasks: number;
-  readonly reviewedTasks: number;
-  readonly lastReviewedBy: string | null;
-  readonly lastReviewedAt: string | null;
-}
-
-interface AssignmentWorkbench {
-  readonly campaignId: string;
-  readonly campaignName: string;
-  readonly phase: CampaignPhase;
-  readonly campaignVersion: number;
-  readonly scorecardStatus: string;
-  readonly unitGroups: readonly { code: string; name: string; documentedUnitCount: number }[];
-  readonly teams: readonly { id: string; name: string }[];
-  readonly reviewers: readonly { id: string; displayName: string; teamId: string }[];
-  readonly plans: readonly AssignmentPlan[];
-  readonly progress: {
-    readonly totalGroups: number;
-    readonly readyGroups: number;
-    readonly expectedTasks: number;
-    readonly submittedTasks: number;
-    readonly reviewedTasks: number;
-  };
-}
-
-type AdvanceEndpoint = 'release' | 'start-review' | 'publish-round-one' | 'start-round-two';
-
-/** Chỉ bốn giai đoạn đầu có lệnh chuyển tiếp tương ứng. */
-const ADVANCE_ENDPOINTS = new Map<CampaignPhase, AdvanceEndpoint>([
-  ['PREPARATION', 'release'],
-  ['SELF_ASSESSMENT', 'start-review'],
-  ['ROUND_1', 'publish-round-one'],
-  ['EXPLANATION', 'start-round-two'],
-]);
-
-const PHASE_LABELS = new Map<CampaignPhase, string>([
-  ['PREPARATION', 'Đang cấu hình'],
-  ['SELF_ASSESSMENT', 'Đơn vị đang nhập'],
-  ['ROUND_1', 'Đang thẩm định vòng 1'],
-  ['EXPLANATION', 'Đang giải trình'],
-  ['ROUND_2', 'Đang thẩm định vòng 2'],
-  ['PUBLISHED', 'Đã công bố'],
-]);
+type AssignmentStatusFilter = 'ALL' | 'UNALLOCATED' | 'UNASSIGNED' | 'READY';
 
 @Component({
   selector: 'app-scorecard-catalog-page',
-  imports: [FormsModule],
+  imports: [FormsModule, RouterLink, AppIconComponent],
   templateUrl: './scorecard-catalog.page.html',
-  styleUrls: ['./scorecard-catalog.page.css', './scorecard-inspector.css'],
+  styleUrls: [
+    './scorecard-catalog.page.css',
+    './scorecard-toolbar.css',
+    './scorecard-table.css',
+    './scorecard-inspector.css',
+    './scorecard-responsive.css',
+  ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ScorecardCatalogPage implements OnInit {
   private readonly http = inject(HttpClient);
+  private readonly router = inject(Router);
+  protected readonly teamsRoute = this.router.url.startsWith('/superadmin')
+    ? '/superadmin/teams'
+    : '/admin/teams';
   protected readonly catalog = signal<ScorecardCatalog | null>(null);
   protected readonly workbench = signal<AssignmentWorkbench | null>(null);
   protected readonly error = signal('');
   protected readonly notice = signal('');
   protected readonly saving = signal(false);
   protected readonly query = signal('');
-  protected readonly section = signal<'ALL' | 'CORE' | 'BONUS'>('ALL');
+  protected readonly section = signal<ScorecardSection>('ALL');
+  protected readonly status = signal<AssignmentStatusFilter>('ALL');
+  protected readonly page = signal(1);
+  protected readonly pageSize = 10;
   protected readonly sourceOpen = signal(false);
   protected readonly selectedGroups = signal<readonly string[]>([]);
   protected readonly inspectorOpen = signal(false);
   protected readonly inspectorMode = signal<'single' | 'bulk'>('single');
+  protected readonly inspectorFocus = signal<'all' | 'scope' | 'review'>('all');
   protected readonly activeGroupId = signal<string | null>(null);
   protected readonly draftUnitGroups = signal<readonly string[]>([]);
   protected readonly draftTeamId = signal('');
@@ -155,37 +75,98 @@ export class ScorecardCatalogPage implements OnInit {
     () => this.catalog()?.groups.find((group) => group.id === this.activeGroupId()) ?? null,
   );
 
-  protected readonly availableReviewers = computed(() =>
+  protected readonly selectedTeam = computed(() =>
+    this.workbench()?.teams.find((team) => team.id === this.draftTeamId()),
+  );
+
+  protected readonly teamDirectory = computed(() => {
+    const workbench = this.workbench();
+    const catalog = this.catalog();
+    return workbench && catalog ? buildTeamDirectory(workbench, catalog) : null;
+  });
+
+  protected readonly selectedTeamRoster = computed(() =>
+    this.teamDirectory()?.teams.find((team) => team.id === this.draftTeamId()),
+  );
+
+  protected readonly selectedReviewerRoster = computed(() =>
+    this.teamDirectory()?.members.find((member) => member.id === this.draftReviewerId()),
+  );
+
+  protected readonly teamReviewers = computed(() =>
     (this.workbench()?.reviewers ?? []).filter(
-      (reviewer) => !this.draftTeamId() || reviewer.teamId === this.draftTeamId(),
+      (reviewer) => reviewer.teamId === this.draftTeamId(),
     ),
   );
 
-  protected readonly rows = computed<readonly TableRow[]>(() => {
-    const catalog = this.catalog();
-    if (!catalog) return [];
-    const query = this.query().trim().toLocaleLowerCase('vi');
-    return catalog.groups
-      .filter((group) => this.section() === 'ALL' || group.section === this.section())
-      .flatMap((group) => {
-        const visibleLines = group.lines.filter((line) =>
-          !query
-            ? true
-            : `${group.code} ${group.title} ${line.code} ${line.title} ${line.requirement}`
-                .toLocaleLowerCase('vi')
-                .includes(query),
-        );
-        return visibleLines.map((line, index) => ({
-          groupId: group.id,
-          groupCode: group.code,
-          groupTitle: group.title,
-          section: group.section,
-          firstInGroup: index === 0,
-          visibleLineCount: visibleLines.length,
-          line,
-        }));
-      });
+  protected readonly availableReviewers = computed(() =>
+    this.teamReviewers().filter((reviewer) => reviewer.enabled),
+  );
+
+  protected readonly lockedDraftReviewer = computed(() =>
+    this.teamReviewers().find(
+      (reviewer) => reviewer.id === this.draftReviewerId() && !reviewer.enabled,
+    ),
+  );
+
+  private readonly sectionRows = computed<readonly ScorecardGroupRow[]>(() =>
+    scorecardGroupRows(this.catalog(), this.query(), this.section()),
+  );
+
+  protected readonly rows = computed<readonly ScorecardGroupRow[]>(() =>
+    this.sectionRows().filter((row) => this.matchesStatus(this.plan(row.groupId), this.status())),
+  );
+
+  protected readonly statusCounts = computed(() => {
+    const rows = scorecardGroupRows(this.catalog(), this.query(), this.section());
+    return {
+      ALL: rows.length,
+      UNALLOCATED: rows.filter((row) => this.matchesStatus(this.plan(row.groupId), 'UNALLOCATED'))
+        .length,
+      UNASSIGNED: rows.filter((row) => this.matchesStatus(this.plan(row.groupId), 'UNASSIGNED'))
+        .length,
+      READY: rows.filter((row) => this.matchesStatus(this.plan(row.groupId), 'READY')).length,
+    } satisfies Record<AssignmentStatusFilter, number>;
   });
+
+  protected readonly visibleRows = computed(() => {
+    const start = (this.page() - 1) * this.pageSize;
+    return this.rows().slice(start, start + this.pageSize);
+  });
+
+  protected readonly totalPages = computed(() =>
+    Math.max(1, Math.ceil(this.rows().length / this.pageSize)),
+  );
+
+  protected readonly sectionCounts = computed(() => {
+    const groups = this.catalog()?.groups ?? [];
+    return {
+      ALL: groups.length,
+      CORE: groups.filter((group) => group.section === 'CORE').length,
+      BONUS: groups.filter((group) => group.section === 'BONUS').length,
+    } satisfies Record<ScorecardSection, number>;
+  });
+
+  protected readonly totalUnits = computed(() =>
+    (this.catalog()?.unitGroups ?? []).reduce(
+      (total, group) => total + group.documentedUnitCount,
+      0,
+    ),
+  );
+
+  protected readonly pageStart = computed(() =>
+    this.rows().length ? (this.page() - 1) * this.pageSize + 1 : 0,
+  );
+
+  protected readonly pageEnd = computed(() =>
+    Math.min(this.page() * this.pageSize, this.rows().length),
+  );
+
+  protected readonly allVisibleSelected = computed(
+    () =>
+      !!this.visibleRows().length &&
+      this.visibleRows().every((row) => this.selectedGroups().includes(row.groupId)),
+  );
 
   async ngOnInit(): Promise<void> {
     try {
@@ -204,27 +185,25 @@ export class ScorecardCatalogPage implements OnInit {
 
   protected setQuery(event: Event): void {
     this.query.set(targetValue(event));
+    this.page.set(1);
   }
 
-  protected setSection(event: Event): void {
+  protected setSection(value: ScorecardSection): void {
+    this.section.set(value);
+    this.page.set(1);
+  }
+
+  protected setStatus(event: Event): void {
     const value = targetValue(event);
-    if (value === 'ALL' || value === 'CORE' || value === 'BONUS') {
-      this.section.set(value);
+    if (value !== 'ALL' && value !== 'UNALLOCATED' && value !== 'UNASSIGNED' && value !== 'READY') {
+      return;
     }
-  }
-
-  protected evidenceLabel(policy: EvidencePolicy): string {
-    const labels = {
-      LINK: 'Nhập liên kết',
-      DOCUMENT: 'Văn bản/danh sách',
-      INTERNAL: 'Tổ chủ động theo dõi',
-      GUIDED: 'Theo hướng dẫn',
-    } satisfies Record<EvidencePolicy, string>;
-    return labels[policy] ?? policy;
+    this.status.set(value);
+    this.page.set(1);
   }
 
   protected phaseLabel(phase: CampaignPhase): string {
-    return PHASE_LABELS.get(phase) ?? phase;
+    return campaignPhaseLabel(phase);
   }
 
   protected plan(groupId: string): AssignmentPlan | undefined {
@@ -232,8 +211,16 @@ export class ScorecardCatalogPage implements OnInit {
   }
 
   protected isReady(groupId: string): boolean {
-    const plan = this.plan(groupId);
-    return !!plan?.unitGroupCodes.length && !!plan.teamId && !!plan.reviewerId;
+    return assignmentIsReady(this.plan(groupId));
+  }
+
+  private matchesStatus(plan: AssignmentPlan | undefined, status: AssignmentStatusFilter): boolean {
+    if (status === 'ALL') return true;
+    const allocated = !!plan?.unitGroupCodes.length;
+    const assigned = !!plan?.teamId && !!plan.reviewerId;
+    if (status === 'UNALLOCATED') return !allocated;
+    if (status === 'UNASSIGNED') return allocated && !assigned;
+    return allocated && assigned;
   }
 
   protected isSelected(groupId: string): boolean {
@@ -246,9 +233,19 @@ export class ScorecardCatalogPage implements OnInit {
     );
   }
 
+  protected toggleVisibleSelection(): void {
+    const visibleIds = this.visibleRows().map((row) => row.groupId);
+    this.selectedGroups.update((selected) =>
+      this.allVisibleSelected()
+        ? selected.filter((id) => !visibleIds.includes(id))
+        : [...new Set([...selected, ...visibleIds])],
+    );
+  }
+
   protected openGroup(groupId: string): void {
     const plan = this.plan(groupId);
     this.inspectorMode.set('single');
+    this.inspectorFocus.set('all');
     this.activeGroupId.set(groupId);
     this.draftUnitGroups.set(plan?.unitGroupCodes ?? []);
     this.draftTeamId.set(plan?.teamId ?? '');
@@ -257,15 +254,40 @@ export class ScorecardCatalogPage implements OnInit {
     this.inspectorOpen.set(true);
   }
 
-  protected openBulk(): void {
+  protected openBulk(focus: 'scope' | 'review'): void {
     if (!this.selectedGroups().length) return;
     this.inspectorMode.set('bulk');
+    this.inspectorFocus.set(focus);
     this.activeGroupId.set(null);
     this.draftUnitGroups.set([]);
     this.draftTeamId.set('');
     this.draftReviewerId.set('');
     this.notice.set('');
     this.inspectorOpen.set(true);
+  }
+
+  protected setPage(page: number): void {
+    this.page.set(Math.max(1, Math.min(page, this.totalPages())));
+  }
+
+  protected unitGroupLabel(plan: AssignmentPlan | undefined): string {
+    const codes = plan?.unitGroupCodes ?? [];
+    if (!codes.length) return 'Chưa phân bổ';
+    if (codes.length > 1) return `${codes.length} khối`;
+    return this.workbench()?.unitGroups.find((group) => group.code === codes[0])?.name ?? '1 khối';
+  }
+
+  protected reviewerLabel(plan: AssignmentPlan | undefined): string {
+    if (!plan?.reviewerId) return 'Chưa phân công';
+    return (
+      this.workbench()?.reviewers.find((reviewer) => reviewer.id === plan.reviewerId)
+        ?.displayName ?? 'Chưa phân công'
+    );
+  }
+
+  protected teamLabel(plan: AssignmentPlan | undefined): string {
+    if (!plan?.teamId) return 'Chưa chọn tổ';
+    return this.workbench()?.teams.find((team) => team.id === plan.teamId)?.name ?? 'Tổ theo dõi';
   }
 
   protected closeInspector(): void {
@@ -302,6 +324,7 @@ export class ScorecardCatalogPage implements OnInit {
           ? await firstValueFrom(
               this.http.put<AssignmentWorkbench>('/api/assignments/current/bulk', {
                 ...common,
+                mode: this.inspectorFocus().toUpperCase(),
                 groups: this.selectedGroups().map((groupId) => ({
                   groupId,
                   expectedVersion: this.plan(groupId)?.version ?? 0,
@@ -320,7 +343,13 @@ export class ScorecardCatalogPage implements OnInit {
       this.workbench.set(updated);
       this.selectedGroups.set([]);
       this.inspectorOpen.set(false);
-      this.notice.set('Đã lưu phạm vi và người thẩm định.');
+      this.notice.set(
+        this.inspectorFocus() === 'scope'
+          ? 'Đã lưu phạm vi áp dụng.'
+          : this.inspectorFocus() === 'review'
+            ? 'Đã lưu người chấm.'
+            : 'Đã lưu phạm vi và người chấm.',
+      );
     } catch (error) {
       this.notice.set(
         error instanceof HttpErrorResponse
@@ -335,7 +364,7 @@ export class ScorecardCatalogPage implements OnInit {
   protected async advance(): Promise<void> {
     const workbench = this.workbench();
     if (!workbench || this.saving()) return;
-    const endpoint = ADVANCE_ENDPOINTS.get(workbench.phase);
+    const endpoint = advanceEndpoint(workbench.phase);
     if (endpoint === undefined) return;
     this.saving.set(true);
     this.notice.set('');
@@ -354,7 +383,7 @@ export class ScorecardCatalogPage implements OnInit {
       const notices = {
         release: 'Đã ban hành bảng phân công.',
         'start-review': 'Đã mở vòng thẩm định thứ nhất.',
-        'publish-round-one': 'Đã khóa điểm vòng 1 và mở thời gian giải trình.',
+        'open-explanation': 'Đã khóa điểm vòng 1 và mở thời gian giải trình.',
         'start-round-two': 'Đã khóa giải trình và mở vòng thẩm định thứ hai.',
       } satisfies Record<AdvanceEndpoint, string>;
       this.notice.set(notices[endpoint]);

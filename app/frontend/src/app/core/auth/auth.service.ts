@@ -1,21 +1,11 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import type { AuthenticatedAccount } from '../../api/models';
 import { SessionLifecycleService } from './session-lifecycle.service';
 import { CsrfTokenStore } from './csrf-token.store';
 
-export type AccountRole = 'SUPERADMIN' | 'CAMPAIGN_ADMIN' | 'REVIEWER' | 'UNIT_MEMBER';
-
-export interface AuthenticatedAccount {
-  readonly id: string;
-  readonly displayName: string;
-  readonly role: AccountRole;
-  readonly campaignIds: readonly string[];
-  readonly capabilities: readonly string[];
-  readonly organizationId: string | null;
-  readonly teamId: string | null;
-  readonly passwordChangeRequired: boolean;
-}
+export type { AccountRole, AuthenticatedAccount } from '../../api/models';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -47,6 +37,9 @@ export class AuthService {
     const account = await firstValueFrom(
       this.http.post<AuthenticatedAccount>('/api/auth/login', { username, password }),
     );
+    // The backend replaces the pre-authentication session on login. Refresh the
+    // synchronizer token so the first authenticated write never reuses the old session token.
+    await this.ensureCsrf();
     this.account.set(account);
     this.loadPromise = Promise.resolve(account);
     return account;

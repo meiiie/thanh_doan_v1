@@ -17,9 +17,8 @@ Analysis and UX validation are **local-only**. Do not deploy, publish, migrate p
 - `lab/DESIGN_SYSTEM.md` — canonical design tokens.
 - `lab/DESIGN_SPEC_V2.md` — normative visual math, component and motion redlines.
 - `lab/MODULE_NAVIGATION.md` — domain modules, role sidebars and contextual rails.
-- `lab/specimen/index.html` — dependency-free interactive design specimen.
-- `lab/MOCKUP_REVIEW.md` — accepted/rejected traits in generated concepts.
-- `web/` — existing executable workflow prototype and regression harness; read `web/AGENTS.md` before changing it.
+- `app/README.md` — canonical executable Angular/Spring product and local run path.
+- `ops/vps/README.md` — single-VPS production package, security boundaries and recovery runbook.
 - `duananhCuong.pdf`, workbook and reference images — customer inputs, never overwrite.
 
 ## Working rules
@@ -36,4 +35,4 @@ Analysis and UX validation are **local-only**. Do not deploy, publish, migrate p
 
 ## Verification
 
-Until the new Angular/Spring application is scaffolded, run checks inside `web/` according to `web/AGENTS.md`. When the new app exists, add scoped commands to `frontend/AGENTS.md` and `backend/AGENTS.md`; keep this root file short.
+Run `scripts/check.ps1` for the canonical application. Folder-specific gates remain in `app/frontend/AGENTS.md` and `app/backend/AGENTS.md`; keep this root file short.

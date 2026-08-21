@@ -5,10 +5,18 @@ $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path -Parent $PSScriptRoot
 $frontendRoot = Join-Path $projectRoot 'app\frontend'
 $backendRoot = Join-Path $projectRoot 'app\backend'
+$contractRoot = Join-Path $projectRoot 'app\contracts'
 $runtimeRoot = Join-Path $projectRoot '.tmp'
 $credentialPath = Join-Path $runtimeRoot 'local-superadmin.password'
 . (Join-Path $PSScriptRoot 'node-runtime.ps1')
 Initialize-ProjectNode
+
+if (-not (Test-Path -LiteralPath (Join-Path $contractRoot 'node_modules'))) {
+  Push-Location $contractRoot
+  try { npm install } finally { Pop-Location }
+}
+Push-Location $contractRoot
+try { npm run generate } finally { Pop-Location }
 
 New-Item -ItemType Directory -Path $runtimeRoot -Force | Out-Null
 if (-not (Test-Path -LiteralPath $credentialPath)) {
@@ -29,6 +37,12 @@ try {
   if (-not $csrf.token) { throw 'Port 8081 is running an incompatible application.' }
   $backendRunning = $true
   Write-Host 'Backend is already running at http://127.0.0.1:8081/'
+}
+catch [System.Net.Http.HttpRequestException] {
+  # No compatible backend is listening on port 8081.
+}
+catch [System.Threading.Tasks.TaskCanceledException] {
+  # No compatible backend is listening on port 8081.
 }
 catch [System.Net.WebException] {
   # No compatible backend is listening on port 8081.
@@ -53,6 +67,8 @@ if (-not $backendRunning) {
       $health = Invoke-RestMethod -Uri 'http://127.0.0.1:8081/actuator/health' -TimeoutSec 1
       if ($health.status -eq 'UP') { $ready = $true; break }
     }
+    catch [System.Net.Http.HttpRequestException] { Start-Sleep -Milliseconds 500 }
+    catch [System.Threading.Tasks.TaskCanceledException] { Start-Sleep -Milliseconds 500 }
     catch [System.Net.WebException] { Start-Sleep -Milliseconds 500 }
   }
   if (-not $ready) { throw "Backend did not become ready. See $runtimeRoot\backend-dev.err.log" }
@@ -62,10 +78,16 @@ if (-not $backendRunning) {
 $frontendRunning = $false
 try {
   $existingResponse = Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:4317/' -TimeoutSec 2
-  if ($existingResponse.Content -match 'name="dau-xanh-app"') {
+  if ($existingResponse.Content -match 'name="neko-doan-app"') {
     $frontendRunning = $true
     Write-Host 'Frontend is already running at http://127.0.0.1:4317/'
   } else { throw 'Port 4317 is running an incompatible application.' }
+}
+catch [System.Net.Http.HttpRequestException] {
+  # No compatible frontend is listening on port 4317.
+}
+catch [System.Threading.Tasks.TaskCanceledException] {
+  # No compatible frontend is listening on port 4317.
 }
 catch [System.Net.WebException] {
   # No compatible frontend is listening on port 4317.
@@ -92,8 +114,10 @@ if (-not $frontendRunning) {
     if ($frontendProcess.HasExited) { throw "Frontend exited during startup. See $runtimeRoot\frontend-dev.err.log" }
     try {
       $page = Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:4317/login' -TimeoutSec 1
-      if ($page.Content -match 'name="dau-xanh-app"') { $frontendReady = $true; break }
+      if ($page.Content -match 'name="neko-doan-app"') { $frontendReady = $true; break }
     }
+    catch [System.Net.Http.HttpRequestException] { Start-Sleep -Milliseconds 500 }
+    catch [System.Threading.Tasks.TaskCanceledException] { Start-Sleep -Milliseconds 500 }
     catch [System.Net.WebException] { Start-Sleep -Milliseconds 500 }
   }
   if (-not $frontendReady) { throw "Frontend did not become ready. See $runtimeRoot\frontend-dev.err.log" }
@@ -101,5 +125,6 @@ if (-not $frontendRunning) {
 }
 
 Write-Host 'Open http://127.0.0.1:4317/login'
+Write-Host 'Mode: DEVELOPMENT (hot reload + local H2; not the TLS/PostgreSQL acceptance surface)'
 Write-Host 'Username: superadmin'
 Write-Host "Local password file: $credentialPath"

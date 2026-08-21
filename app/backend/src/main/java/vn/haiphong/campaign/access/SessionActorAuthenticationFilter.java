@@ -49,8 +49,8 @@ public final class SessionActorAuthenticationFilter extends OncePerRequestFilter
         }
         Object accountId = session == null ? null : session.getAttribute(ACCOUNT_ID);
         if (accountId instanceof String id) {
-            AccountRepository.Credentials credentials = accounts.credentialsById(id).orElse(null);
-            if (credentials != null && credentials.enabled() && credentials.passwordChangeRequired()
+            AccountRepository.SessionAccount sessionAccount = accounts.sessionAccountById(id).orElse(null);
+            if (sessionAccount != null && sessionAccount.passwordChangeRequired()
                     && !request.getRequestURI().startsWith("/api/auth/")) {
                 response.setStatus(428);
                 response.setCharacterEncoding("UTF-8");
@@ -61,11 +61,12 @@ public final class SessionActorAuthenticationFilter extends OncePerRequestFilter
                 );
                 return;
             }
-            accounts.actorById(id).ifPresent(actor -> {
+            if (sessionAccount != null) {
+                Actor actor = sessionAccount.actor();
                 var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + actor.role().name()));
                 var authentication = UsernamePasswordAuthenticationToken.authenticated(actor, "[SESSION]", authorities);
                 SecurityContextHolder.getContext().setAuthentication(authentication);
-            });
+            }
             response.setHeader(SESSION_EXPIRES_AT_HEADER, expiresAt(session).toString());
         }
         try {

@@ -9,10 +9,11 @@ import java.util.List;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import vn.haiphong.campaign.lifecycle.application.IdempotencyConflict;
+import vn.haiphong.campaign.lifecycle.application.IdempotencyPort;
 import vn.haiphong.campaign.lifecycle.domain.DomainRuleViolation;
 
 @Repository
-public class IdempotencyStore {
+public class IdempotencyStore implements IdempotencyPort {
     private final JdbcTemplate jdbc;
 
     public IdempotencyStore(JdbcTemplate jdbc) {

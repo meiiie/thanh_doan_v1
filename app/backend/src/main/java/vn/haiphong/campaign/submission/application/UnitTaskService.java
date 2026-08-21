@@ -9,20 +9,19 @@ import org.springframework.transaction.annotation.Transactional;
 import vn.haiphong.campaign.access.Actor;
 import vn.haiphong.campaign.access.ActorRole;
 import vn.haiphong.campaign.access.CurrentActor;
+import vn.haiphong.campaign.lifecycle.application.IdempotencyPort;
 import vn.haiphong.campaign.lifecycle.domain.DomainRuleViolation;
 import vn.haiphong.campaign.lifecycle.domain.Submission;
-import vn.haiphong.campaign.lifecycle.infrastructure.IdempotencyStore;
-import vn.haiphong.campaign.submission.infrastructure.UnitTaskRepository;
 
 @Service
 public class UnitTaskService {
-    private final UnitTaskRepository tasks;
+    private final UnitTaskGateway tasks;
     private final CurrentActor currentActor;
     private final Clock clock;
-    private final IdempotencyStore idempotency;
+    private final IdempotencyPort idempotency;
 
-    public UnitTaskService(UnitTaskRepository tasks, CurrentActor currentActor, Clock clock,
-                           IdempotencyStore idempotency) {
+    public UnitTaskService(UnitTaskGateway tasks, CurrentActor currentActor, Clock clock,
+                           IdempotencyPort idempotency) {
         this.tasks = tasks;
         this.currentActor = currentActor;
         this.clock = clock;
@@ -32,20 +31,20 @@ public class UnitTaskService {
     @Transactional(readOnly = true)
     public UnitTaskView view() {
         Actor actor = requireUnit();
-        UnitTaskRepository.CampaignRow campaign = tasks.campaign();
-        UnitTaskRepository.OrganizationRow organization = tasks.organization(actor.organizationId())
+        UnitTaskGateway.CampaignRow campaign = tasks.campaign();
+        UnitTaskGateway.OrganizationRow organization = tasks.organization(actor.organizationId())
                 .orElseThrow(() -> new AccessDeniedException("Account organization is unavailable"));
         return new UnitTaskView(
                 campaign.id(), campaign.name(), campaign.phase(), organization.id(), organization.name(),
                 organization.unitGroupName(), "PREPARATION".equals(campaign.phase()) ? java.util.List.of() :
-                tasks.tasks(organization.id())
+                tasks.tasks(organization.id()).stream().map(row -> taskView(row, campaign.phase())).toList()
         );
     }
 
     @Transactional
     public UnitTaskView saveDraft(String lineId, SaveTask command) {
         Actor actor = requireUnit();
-        UnitTaskRepository.TaskContext context = requireTask(actor.organizationId(), lineId);
+        UnitTaskGateway.TaskContext context = requireTask(actor.organizationId(), lineId);
         requireSubmissionWindow(actor.organizationId(), lineId);
         validateDraft(context, command);
         OffsetDateTime now = OffsetDateTime.now(clock);
@@ -65,7 +64,7 @@ public class UnitTaskService {
                 actor.id(), action, idempotencyKey, lineId, command.selfScore(), command.evidenceUrl(),
                 command.summary(), command.expectedVersion()
         )) return view();
-        UnitTaskRepository.TaskContext context = requireTask(actor.organizationId(), lineId);
+        UnitTaskGateway.TaskContext context = requireTask(actor.organizationId(), lineId);
         requireSubmissionWindow(actor.organizationId(), lineId);
         validateDraft(context, command);
         OffsetDateTime now = OffsetDateTime.now(clock);
@@ -97,7 +96,7 @@ public class UnitTaskService {
             throw new DomainRuleViolation("EXPLANATION_NOT_ACTIVE", "Chiến dịch chưa mở thời gian giải trình.");
         }
         requireTask(actor.organizationId(), lineId);
-        UnitTaskRepository.ExplanationContext context = tasks.explanationContext(actor.organizationId(), lineId)
+        UnitTaskGateway.ExplanationContext context = tasks.explanationContext(actor.organizationId(), lineId)
                 .orElseThrow(() -> new DomainRuleViolation(
                         "EXPLANATION_NOT_AVAILABLE", "Dòng này chưa có kết quả vòng 1 để giải trình."
                 ));
@@ -126,15 +125,36 @@ public class UnitTaskService {
         return view();
     }
 
-    private UnitTaskRepository.TaskContext requireTask(String organizationId, String lineId) {
+    private UnitTaskGateway.TaskContext requireTask(String organizationId, String lineId) {
         return tasks.taskContext(organizationId, lineId)
                 .orElseThrow(() -> new AccessDeniedException("Task is outside the organization assignment"));
+    }
+
+    private static UnitTaskView.TaskView taskView(UnitTaskGateway.TaskRow row, String phase) {
+        boolean explanationWindowReached = switch (phase) {
+            case "EXPLANATION", "ROUND_2", "FINAL_REVIEW", "PUBLISHED", "CLOSED" -> true;
+            default -> false;
+        };
+        boolean reduced = explanationWindowReached && row.roundOneScore() != null && row.selfScore() != null &&
+                row.roundOneScore().compareTo(row.selfScore()) < 0;
+        return new UnitTaskView.TaskView(
+                row.lineId(), row.groupCode(), row.lineCode(), row.title(), row.requirement(),
+                row.evidenceHint(), row.evidencePolicy(), row.evidenceRequired(), row.summaryRequired(),
+                row.maximumScore(), row.reviewTeamName(), row.status(), row.selfScore(), row.evidenceUrl(),
+                row.summary(), row.revision(), row.version(), row.returnReason(), row.returnedAt(),
+                reduced ? row.roundOneScore() : null,
+                reduced ? row.roundOneReason() : null,
+                reduced ? row.roundOneDecidedBy() : null,
+                reduced ? row.roundOneDecidedAt() : null,
+                row.explanationBody(), row.explanationEvidenceUrl(), row.explanationRevision(),
+                row.explanationSubmittedAt(), null, null, null, null
+        );
     }
 
     private Actor requireUnit() {
         Actor actor = currentActor.required();
         if (actor.role() != ActorRole.UNIT_MEMBER || actor.organizationId() == null ||
-                !actor.hasCampaign(UnitTaskRepository.CAMPAIGN_ID)) {
+                !actor.hasCampaign(UnitTaskGateway.CAMPAIGN_ID)) {
             throw new AccessDeniedException("Unit workspace requires an organization-scoped account");
         }
         return actor;
@@ -151,7 +171,7 @@ public class UnitTaskService {
         }
     }
 
-    private static void validateDraft(UnitTaskRepository.TaskContext context, SaveTask command) {
+    private static void validateDraft(UnitTaskGateway.TaskContext context, SaveTask command) {
         if (command.selfScore() != null && (command.selfScore().signum() < 0 ||
                 command.selfScore().compareTo(context.maximumScore()) > 0)) {
             throw new DomainRuleViolation("SELF_SCORE_OUT_OF_RANGE", "Điểm tự chấm phải nằm trong khung điểm.");

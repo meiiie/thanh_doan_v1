@@ -11,16 +11,15 @@ import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import org.springframework.stereotype.Component;
-import vn.haiphong.campaign.result.infrastructure.FinalResultRepository;
 
 @Component
 public final class XlsxExportService {
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss XXX");
 
-    public byte[] create(FinalResultRepository.CampaignRow campaign,
-                         FinalResultRepository.ResultHeader header,
-                         List<FinalResultView.UnitResultView> units,
-                         List<FinalResultRepository.SnapshotLine> lines) {
+    public byte[] create(FinalResultGateway.CampaignRow campaign,
+                         FinalResultGateway.ResultHeader header,
+                         List<FinalResultGateway.UnitSnapshot> units,
+                         List<FinalResultGateway.SnapshotLine> lines) {
         try {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
             try (ZipOutputStream zip = new ZipOutputStream(bytes, StandardCharsets.UTF_8)) {
@@ -41,8 +40,8 @@ public final class XlsxExportService {
         }
     }
 
-    private static String unitSheet(FinalResultRepository.ResultHeader header,
-                                    List<FinalResultView.UnitResultView> units) {
+    private static String unitSheet(FinalResultGateway.ResultHeader header,
+                                    List<FinalResultGateway.UnitSnapshot> units) {
         List<List<Cell>> rows = new ArrayList<>();
         rows.add(List.of(text("KẾT QUẢ ĐỐI SOÁT CHIẾN DỊCH TNTN HÈ 2026", 1)));
         rows.add(List.of(text("Snapshot", 5), text("Phiên " + header.result().resultVersion(), 6),
@@ -55,7 +54,7 @@ public final class XlsxExportService {
         rows.add(headers("STT", "Mã đơn vị", "Đơn vị", "Khối", "Điểm chính tối đa",
                 "Điểm chính", "Điểm cộng thô", "Điểm cộng tính", "Tổng điểm", "Tỷ lệ điểm chính"));
         int index = 1;
-        for (FinalResultView.UnitResultView unit : units) {
+        for (FinalResultGateway.UnitSnapshot unit : units) {
             rows.add(List.of(
                     number(index++, 3), text(unit.organizationCode(), 0), text(unit.organizationName(), 0),
                     text(unit.unitGroupCode(), 0), number(unit.applicableCoreMaximum(), 3),
@@ -70,7 +69,7 @@ public final class XlsxExportService {
                 "<mergeCells count=\"1\"><mergeCell ref=\"A1:J1\"/></mergeCells>", 5, 2);
     }
 
-    private static String detailSheet(List<FinalResultRepository.SnapshotLine> lines) {
+    private static String detailSheet(List<FinalResultGateway.SnapshotLine> lines) {
         List<List<Cell>> rows = new ArrayList<>();
         rows.add(headers(
                 "STT", "Mã đơn vị", "Đơn vị", "Khối", "Mã nhóm", "Mã dòng", "Nội dung", "Loại",
@@ -79,7 +78,7 @@ public final class XlsxExportService {
                 "Cán bộ V1", "Thời điểm V1", "Cán bộ V2", "Thời điểm V2"
         ));
         int index = 1;
-        for (FinalResultRepository.SnapshotLine line : lines) {
+        for (FinalResultGateway.SnapshotLine line : lines) {
             rows.add(List.of(
                     number(index++, 3), text(line.organizationCode(), 0), text(line.organizationName(), 0),
                     text(line.unitGroupCode(), 0), text(line.groupCode(), 0), text(line.lineCode(), 0),
@@ -101,8 +100,8 @@ public final class XlsxExportService {
         return worksheet(rows, columns.toString(), "A1:X" + rows.size(), "A1:X" + rows.size(), "", 1, 6);
     }
 
-    private static String metadataSheet(FinalResultRepository.CampaignRow campaign,
-                                        FinalResultRepository.ResultHeader header,
+    private static String metadataSheet(FinalResultGateway.CampaignRow campaign,
+                                        FinalResultGateway.ResultHeader header,
                                         int unitCount, int lineCount) {
         List<List<Cell>> rows = List.of(
                 List.of(text("THÔNG TIN SNAPSHOT BẤT BIẾN", 1)),
@@ -307,7 +306,7 @@ public final class XlsxExportService {
         return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>" +
                 "<Properties xmlns=\"http://schemas.openxmlformats.org/officeDocument/2006/extended-properties\" " +
                 "xmlns:vt=\"http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes\">" +
-                "<Application>Dấu Xanh Hải Phòng</Application></Properties>";
+                "<Application>Neko Đoàn</Application></Properties>";
     }
 
     private record Cell(String text, BigDecimal number, int style) {}

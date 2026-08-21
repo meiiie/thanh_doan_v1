@@ -8,10 +8,10 @@ import java.util.List;
 import java.util.Map;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
-import vn.haiphong.campaign.scorecard.application.ScorecardCatalogView;
+import vn.haiphong.campaign.scorecard.application.ScorecardCatalogQuery;
 
 @Repository
-public class ScorecardCatalogRepository {
+public class ScorecardCatalogRepository implements ScorecardCatalogQuery {
     private static final String VERSION_ID = "scorecard-dhcd-v1";
     private final JdbcTemplate jdbc;
 
@@ -19,7 +19,7 @@ public class ScorecardCatalogRepository {
         this.jdbc = jdbc;
     }
 
-    public ScorecardCatalogView current() {
+    public CatalogData current() {
         Header header = jdbc.queryForObject(
                 "select sv.id, sv.campaign_id, c.name campaign_name, sv.title, sv.audience, sv.status, " +
                         "sd.file_name, sd.sha256, sd.received_scope, sd.imported_at, " +
@@ -38,9 +38,9 @@ public class ScorecardCatalogRepository {
         );
         if (header == null) throw new IllegalStateException("Scorecard source seed is missing");
 
-        List<ScorecardCatalogView.UnitGroupView> unitGroups = jdbc.query(
+        List<UnitGroupRow> unitGroups = jdbc.query(
                 "select code, name, documented_unit_count, source_reference from unit_group order by code",
-                (rs, row) -> new ScorecardCatalogView.UnitGroupView(
+                (rs, row) -> new UnitGroupRow(
                         rs.getString("code"), rs.getString("name"), rs.getInt("documented_unit_count"),
                         rs.getString("source_reference")
                 )
@@ -63,7 +63,7 @@ public class ScorecardCatalogRepository {
                         );
                         groups.put(groupId, group);
                     }
-                    group.lines().add(new ScorecardCatalogView.LineView(
+                    group.lines().add(new LineRow(
                             rs.getString("line_id"), rs.getString("line_code"), rs.getString("line_title"),
                             rs.getString("requirement"), rs.getString("evidence_hint"),
                             rs.getString("report_template"), rs.getString("evidence_policy"),
@@ -73,15 +73,15 @@ public class ScorecardCatalogRepository {
                 },
                 VERSION_ID
         );
-        List<ScorecardCatalogView.GroupView> groupViews = groups.values().stream().map(MutableGroup::toView).toList();
+        List<GroupRow> groupViews = groups.values().stream().map(MutableGroup::toRow).toList();
         int lineCount = groupViews.stream().mapToInt(group -> group.lines().size()).sum();
-        return new ScorecardCatalogView(
+        return new CatalogData(
                 header.id(), header.campaignId(), header.campaignName(), header.title(), header.audience(),
                 header.status(),
-                new ScorecardCatalogView.SourceView(
+                new SourceRow(
                         header.fileName(), header.sha256(), header.receivedScope(), header.importedAt()
                 ),
-                new ScorecardCatalogView.PolicyView(
+                new PolicyRow(
                         header.coreMaximum(), header.bonusRawMaximum(), header.bonusCap(),
                         header.coreMaximum().add(header.bonusCap()), groupViews.size(), lineCount
                 ),
@@ -107,10 +107,10 @@ public class ScorecardCatalogRepository {
 
     private record MutableGroup(
             String id, String code, String title, String section, int displayOrder,
-            List<ScorecardCatalogView.LineView> lines
+            List<LineRow> lines
     ) {
-        ScorecardCatalogView.GroupView toView() {
-            return new ScorecardCatalogView.GroupView(id, code, title, section, displayOrder, List.copyOf(lines));
+        GroupRow toRow() {
+            return new GroupRow(id, code, title, section, displayOrder, List.copyOf(lines));
         }
     }
 }

@@ -22,7 +22,9 @@ scripts/analysis/generate-scorecard-seed.mjs
 scripts/dev.ps1                 # một lệnh khởi động local ở cổng 4317
 scripts/check.ps1               # quality gate; -Browser chạy thêm Playwright
 scripts/node-runtime.ps1        # chọn Node LTS phù hợp, không phụ thuộc PATH hiện tại
-app/frontend/e2e/admin-smoke.py # golden browser journey
+app/frontend/e2e/admin-smoke.py # golden browser journey Superadmin/Admin
+app/frontend/e2e/role-workspaces-smoke.py
+                                # Admin/Reviewer/Unit role + compact shell regression
 ```
 
 ## 3. Quality gates
@@ -71,6 +73,8 @@ app/frontend/e2e/admin-smoke.py # golden browser journey
 8. Chốt sinh snapshot bất biến; export khớp snapshot.
 9. Tài khoản bị khóa mất quyền trên request tiếp theo.
 10. Link minh chứng hỏng được phát hiện và hiển thị như blocker.
+
+Các scenario 1–6 và 8–9 đã có coverage API/domain ở mức phù hợp với slice hiện tại. Scenario 7 và 10 còn mở; kiểm tra link hỏng chưa được hiện thực. Journey browser đầy đủ qua mọi phase cũng là gate tiếp theo, không được suy diễn từ API test.
 
 ## 5. Definition of Done
 
@@ -247,3 +251,37 @@ Checkpoint này thay thế các giả định runtime trong mục 7–9; các m�
 
 - Đây là readiness của vertical slice local, chưa phải phê duyệt production. Chưa có TLS/domain, secret manager, backup off-host đã diễn tập, staging observability và kiểm thử tải 134 × 55.
 - Vòng trả hồ sơ, giải trình, vòng 2, bốn mắt chốt kết quả và export đối soát vẫn là gate nghiệp vụ tiếp theo.
+
+## 13. Checkpoint — roster nguồn và workbench phân công (21/08/2026)
+
+### Đã chứng minh
+
+- `Thông tin Website.xlsx` được đọc thành đúng 164 danh tính: 1 Superadmin, 4 Admin, 5 SubAdmin1, 20 SubAdmin2 và 134 đơn vị; SHA-256 nguồn được khóa trong manifest local.
+- Provision tạo 5 Tổ, 134 organization và 163 account có provenance đến dòng Excel; chạy lần hai tạo `0` record nhưng xác minh đủ cardinality.
+- SubAdmin1 dùng capability `review.team.overview` để theo dõi Tổ, không nở role và không có approval assignment ngầm. API workbench trả `monitorName`, tổng cán bộ chấm khả dụng và số tài khoản khóa. Server chấp nhận mọi Reviewer đang hoạt động thuộc đúng Tổ, gồm SubAdmin1 khi được gán trực tiếp, và từ chối tài khoản khóa/sai Tổ.
+- Superadmin khóa/mở khóa account và audit trong một transaction. Kiểm tra live khóa `th.01` làm Tổ Trường học đổi từ `5 khả dụng / 0 khóa` sang `4 / 1`, sau đó khôi phục.
+- Bảng Tổng có lọc trạng thái, drawer Tổ → người theo dõi Tổ (context) → cán bộ chấm (assignment) và bulk command không xóa dữ liệu ngoài focus. Browser smoke desktop/mobile, axe, console, frontend gate và backend gate khóa luồng này.
+- Shell regression khóa hành vi lớp tạm thời: menu tài khoản không sống qua route/drawer/window blur; click ngoài và `Escape` đóng có thứ tự; desktop rộng thu gọn sidebar `304 → 88 px`, compact có nút đóng drawer 44 px và không tạo lớp phủ treo.
+
+### Dữ liệu nhạy cảm
+
+- Manifest/mật khẩu nằm dưới `.tmp/`; sổ bàn giao nằm dưới `outputs/`; cả hai bị Git bỏ qua.
+- Không ghi password vào log, migration, test fixture hoặc tài liệu. Tài khoản nguồn bắt buộc đổi mật khẩu lần đầu.
+- Superadmin bootstrap được đối chiếu với dòng nguồn nhưng không tạo tài khoản Superadmin thứ hai.
+
+## 14. Checkpoint — kiểm chứng vòng đời và shell mọi vai trò (21/08/2026)
+
+### Đã chứng minh
+
+- `scripts/check.ps1` đạt backend 21/21, frontend 36/36, PostgreSQL migration V1–V8, OpenAPI, SBOM/license, npm audit và production build. Browser smoke được chạy riêng trên bề mặt local đang hoạt động.
+- Seed nghiệm thu cô lập đi hết assignment, release, submit, return/resubmit, round 1, selective explanation, selective round 2, four-eyes, publish, immutable unit result và XLSX export.
+- Capacity seed 134 × 55 chạy trên PostgreSQL 18; result projection p95 47,86 ms với budget 250 ms.
+- Compact regression 910 × 698 cho Admin, Reviewer và Unit chứng minh topbar chỉ còn nút điều hướng, không có context/session/avatar lặp, không tràn ngang và không vi phạm axe WCAG 2.2 AA.
+
+### Còn mở
+
+- Multi-campaign vẫn bị cố định vào chiến dịch Hè 2026.
+- Browser chưa tự điều khiển toàn journey theo phase; trạng thái đầy đủ hiện được chứng minh ở API/database.
+- Multi-evidence/file upload, comment thread, notification/deadline, active reassignment, audit UI và supersede snapshot chưa có quyết định hoặc implementation đầy đủ.
+
+Biên bản chi tiết: [`audits/FULL_WORKFLOW_ACCEPTANCE_2026-08-21.md`](audits/FULL_WORKFLOW_ACCEPTANCE_2026-08-21.md).

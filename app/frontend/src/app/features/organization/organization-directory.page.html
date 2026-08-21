@@ -49,7 +49,7 @@
             {{ savingOrganization() ? 'Đang lưu…' : 'Thêm đơn vị' }}
           </button>
         </form>
-        <div class="list" aria-label="Danh sách đơn vị">
+        <div class="list" tabindex="0" aria-label="Danh sách đơn vị">
           @for (organization of data.organizations; track organization.id) {
             <div class="list-row">
               <span class="code">{{ organization.code }}</span>
@@ -78,7 +78,7 @@
             {{ savingTeam() ? 'Đang lưu…' : 'Thêm tổ' }}
           </button>
         </form>
-        <div class="list" aria-label="Danh sách tổ theo dõi">
+        <div class="list" tabindex="0" aria-label="Danh sách tổ theo dõi">
           @for (team of data.teams; track team.id) {
             <div class="list-row team-row">
               <span class="code">{{ team.code }}</span

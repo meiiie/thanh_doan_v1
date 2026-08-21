@@ -15,12 +15,15 @@ public class OrganizationRepository {
 
     public List<OrganizationView> organizations() {
         return jdbc.query(
-                "select o.id, o.code, o.name, o.unit_group_code, ug.name unit_group_name, o.enabled " +
+                "select o.id, o.code, o.name, o.unit_group_code, ug.name unit_group_name, o.enabled, " +
+                        "o.source_file_name, o.source_sha256, o.source_sheet_name, o.source_row " +
                         "from organization o join unit_group ug on ug.code = o.unit_group_code " +
                         "order by ug.name, o.name",
                 (rs, row) -> new OrganizationView(
                         rs.getString("id"), rs.getString("code"), rs.getString("name"),
-                        rs.getString("unit_group_code"), rs.getString("unit_group_name"), rs.getBoolean("enabled")
+                        rs.getString("unit_group_code"), rs.getString("unit_group_name"), rs.getBoolean("enabled"),
+                        rs.getString("source_file_name"), rs.getString("source_sha256"),
+                        rs.getString("source_sheet_name"), rs.getObject("source_row", Integer.class)
                 )
         );
     }
@@ -36,9 +39,12 @@ public class OrganizationRepository {
 
     public List<TeamView> teams(String campaignId) {
         return jdbc.query(
-                "select id, code, name, enabled from review_team where campaign_id = ? order by name",
+                "select id, code, name, enabled, source_file_name, source_sha256, source_sheet_name, source_row " +
+                        "from review_team where campaign_id = ? order by name",
                 (rs, row) -> new TeamView(
-                        rs.getString("id"), rs.getString("code"), rs.getString("name"), rs.getBoolean("enabled")
+                        rs.getString("id"), rs.getString("code"), rs.getString("name"), rs.getBoolean("enabled"),
+                        rs.getString("source_file_name"), rs.getString("source_sha256"),
+                        rs.getString("source_sheet_name"), rs.getObject("source_row", Integer.class)
                 ),
                 campaignId
         );
@@ -61,24 +67,30 @@ public class OrganizationRepository {
     }
 
     public void insertOrganization(
-            String id, String code, String name, String unitGroupCode, OffsetDateTime createdAt, String createdBy
+            String id, String code, String name, String unitGroupCode, OffsetDateTime createdAt, String createdBy,
+            String sourceFileName, String sourceSha256, String sourceSheetName, Integer sourceRow
     ) {
         jdbc.update(
                 "insert into organization " +
-                        "(id, code, name, unit_group_code, enabled, created_at, created_by) " +
-                        "values (?, ?, ?, ?, true, ?, ?)",
-                id, code, name, unitGroupCode, createdAt, createdBy
+                        "(id, code, name, unit_group_code, enabled, created_at, created_by, " +
+                        "source_file_name, source_sha256, source_sheet_name, source_row) " +
+                        "values (?, ?, ?, ?, true, ?, ?, ?, ?, ?, ?)",
+                id, code, name, unitGroupCode, createdAt, createdBy,
+                sourceFileName, sourceSha256, sourceSheetName, sourceRow
         );
     }
 
     public void insertTeam(
-            String id, String campaignId, String code, String name, OffsetDateTime createdAt, String createdBy
+            String id, String campaignId, String code, String name, OffsetDateTime createdAt, String createdBy,
+            String sourceFileName, String sourceSha256, String sourceSheetName, Integer sourceRow
     ) {
         jdbc.update(
                 "insert into review_team " +
-                        "(id, campaign_id, code, name, enabled, created_at, created_by) " +
-                        "values (?, ?, ?, ?, true, ?, ?)",
-                id, campaignId, code, name, createdAt, createdBy
+                        "(id, campaign_id, code, name, enabled, created_at, created_by, " +
+                        "source_file_name, source_sha256, source_sheet_name, source_row) " +
+                        "values (?, ?, ?, ?, true, ?, ?, ?, ?, ?, ?)",
+                id, campaignId, code, name, createdAt, createdBy,
+                sourceFileName, sourceSha256, sourceSheetName, sourceRow
         );
     }
 
@@ -99,9 +111,13 @@ public class OrganizationRepository {
     }
 
     public record OrganizationView(
-            String id, String code, String name, String unitGroupCode, String unitGroupName, boolean enabled
+            String id, String code, String name, String unitGroupCode, String unitGroupName, boolean enabled,
+            String sourceFileName, String sourceSha256, String sourceSheetName, Integer sourceRow
     ) {}
 
-    public record TeamView(String id, String code, String name, boolean enabled) {}
+    public record TeamView(
+            String id, String code, String name, boolean enabled,
+            String sourceFileName, String sourceSha256, String sourceSheetName, Integer sourceRow
+    ) {}
     public record UnitGroupView(String code, String name, int documentedUnitCount) {}
 }

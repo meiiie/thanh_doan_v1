@@ -1,6 +1,7 @@
 {
-  "name": "campaign-control",
+  "name": "neko-doan-web",
   "version": "0.0.0",
+  "type": "module",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
@@ -8,11 +9,14 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "test:e2e": "python e2e/admin-smoke.py",
+    "test:e2e": "python e2e/admin-smoke.py && python e2e/role-workspaces-smoke.py",
+    "test:e2e:roles": "python e2e/role-workspaces-smoke.py",
+    "brand:sync": "python ../../scripts/brand/sync_neko_doan_brand.py",
+    "brand:check": "node ../../scripts/brand/verify-neko-doan-brand.mjs",
     "format": "prettier --write \"src/**/*.{ts,html,css}\"",
     "format:check": "prettier --check \"src/**/*.{ts,html,css}\"",
     "lint:anti-slop": "oxlint",
-    "check": "npm run format:check && ng test --watch=false && ng build"
+    "check": "npm run format:check && npm run lint:anti-slop && npm run brand:check && ng test --watch=false && ng build"
   },
   "private": true,
   "engines": {
@@ -26,6 +30,8 @@
     "@angular/forms": "^22.1.0",
     "@angular/platform-browser": "^22.1.0",
     "@angular/router": "^22.1.0",
+    "@ng-icons/core": "^35.0.1",
+    "@ng-icons/phosphor-icons": "^35.0.1",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },
@@ -33,10 +39,10 @@
     "@angular/build": "^22.1.3",
     "@angular/cli": "^22.1.3",
     "@angular/compiler-cli": "^22.1.0",
-    "@oxlint/plugins": "1.78.0",
+    "@oxlint/plugins": "1.79.0",
     "axe-core": "^4.13.0",
     "jsdom": "^28.0.0",
-    "oxlint": "1.78.0",
+    "oxlint": "1.79.0",
     "prettier": "^3.8.1",
     "typescript": "~6.0.2",
     "vitest": "^4.0.8"

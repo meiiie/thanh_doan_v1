@@ -1,0 +1,52 @@
+<section class="versions-page">
+  <header>
+    <div>
+      <p>Quản lý nguồn chuẩn</p>
+      <h1>Phiên bản</h1>
+      <span>Theo dõi bản cấu hình hiện hành và trạng thái ban hành của Bảng Tổng.</span>
+    </div>
+    <a [routerLink]="scorecardRoute">Mở Bảng Tổng</a>
+  </header>
+
+  @if (catalog(); as scorecard) {
+    @if (workbench(); as workflow) {
+      <section class="current-version" aria-labelledby="current-version-title">
+        <div class="version-heading">
+          <div>
+            <span>Bản hiện hành</span>
+            <h2 id="current-version-title">Cấu hình v{{ workflow.campaignVersion }}</h2>
+          </div>
+          <strong>{{ phaseLabel() }}</strong>
+        </div>
+        <dl>
+          <div>
+            <dt>Nguồn</dt>
+            <dd>{{ scorecard.source.fileName }}</dd>
+          </div>
+          <div>
+            <dt>Tiêu chí</dt>
+            <dd>{{ scorecard.policy.groupCount }}</dd>
+          </div>
+          <div>
+            <dt>Dòng tính điểm</dt>
+            <dd>{{ scorecard.policy.lineCount }}</dd>
+          </div>
+          <div>
+            <dt>Đủ phân công</dt>
+            <dd>{{ workflow.progress.readyGroups }}/{{ workflow.progress.totalGroups }}</dd>
+          </div>
+        </dl>
+        @if (workflow.phase === 'PREPARATION') {
+          <p class="version-note">
+            Chưa có snapshot đã ban hành. Hoàn tất phân bổ và phân công trong Bảng Tổng trước khi
+            kiểm tra, ban hành phiên bản đầu tiên.
+          </p>
+        }
+      </section>
+    }
+  } @else if (error()) {
+    <p class="load-error" role="alert">{{ error() }}</p>
+  } @else {
+    <p class="loading">Đang đọc phiên bản…</p>
+  }
+</section>

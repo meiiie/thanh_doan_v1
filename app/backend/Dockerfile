@@ -11,7 +11,7 @@ RUN apk upgrade --no-cache \
     && addgroup -S campaign \
     && adduser -S campaign -G campaign
 WORKDIR /app
-COPY --from=build --chown=campaign:campaign /workspace/target/campaign-workflow-*.jar app.jar
+COPY --from=build --chown=campaign:campaign /workspace/target/neko-doan-backend-*.jar app.jar
 USER campaign
 EXPOSE 8081 9090
 ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-XX:+ExitOnOutOfMemoryError", "-Djava.security.egd=file:/dev/urandom", "-jar", "/app/app.jar"]

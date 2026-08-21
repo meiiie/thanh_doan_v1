@@ -1,0 +1,145 @@
+{
+  "schema_version": "neko-doan.brand.v1",
+  "status": "integrated-local",
+  "primary_mark": "Neko Peek",
+  "product_name": "Neko Đoàn",
+  "operator": "Thành đoàn Hải Phòng",
+  "concept_tool": "OpenAI built-in imagegen",
+  "assets": [
+    {
+      "path": "BRAND_SYSTEM.md",
+      "bytes": 2621,
+      "sha256": "2d34ff253798d37d79d51634c23431d3dca12e0758bee9e860482a3894c03380"
+    },
+    {
+      "path": "concepts/neko-doan-workflow-accent-v1.png",
+      "bytes": 866537,
+      "sha256": "f5df6d068b58ad835d337db38e967d05113244de44b4ff286dd44fc2eb199348"
+    },
+    {
+      "path": "logo/neko-doan-lockup.svg",
+      "bytes": 1323,
+      "sha256": "f04b93a7145abd8c9ceb4e63c9caca3d25d4b47dc018e3aab82c1edb14ffe77c"
+    },
+    {
+      "path": "logo/neko-doan-mark-mono.svg",
+      "bytes": 647,
+      "sha256": "8ddd8761e26bed185617aa313c18d21d5cda9ecbb05722820048a68d9d13465e"
+    },
+    {
+      "path": "logo/neko-doan-mark-on-dark.svg",
+      "bytes": 855,
+      "sha256": "287b75a7c0c7b57b93f0501a1df453a3ab44c27886df7d340c878426a3fb5bf0"
+    },
+    {
+      "path": "logo/neko-doan-mark.svg",
+      "bytes": 820,
+      "sha256": "147a682ffdc31ece8f2fe2cf717f1b0829cdfd9ea36d1088c211e252495fd567"
+    },
+    {
+      "path": "logo/neko-doan-mascot-master.png",
+      "bytes": 842468,
+      "sha256": "0224e75562c155e8c93c260631b3e2fb9fc6415d228449189214873d346482be"
+    },
+    {
+      "path": "logo/neko-doan.ico",
+      "bytes": 101625,
+      "sha256": "fb9fac3fbeced5828228f9c9625f3bbd5048e0231aa7dae767d3b2bf645d24f9"
+    },
+    {
+      "path": "logo/png/neko-doan-icon-1024.png",
+      "bytes": 782265,
+      "sha256": "05cda3b54fc238c2474c8cdaaafce2bb64fda3baca1d475d17aa7e31886327fa"
+    },
+    {
+      "path": "logo/png/neko-doan-icon-128.png",
+      "bytes": 20387,
+      "sha256": "7c6caa681a9a617734cf387570952b30605368da8cd1ba35680bc8f778d557d1"
+    },
+    {
+      "path": "logo/png/neko-doan-icon-16.png",
+      "bytes": 883,
+      "sha256": "78b644203a26036f3458931cafa091c5539f5efbf661492d6729c0a965c20686"
+    },
+    {
+      "path": "logo/png/neko-doan-icon-180.png",
+      "bytes": 34446,
+      "sha256": "aea9553bd0921c0ff38cc90bf354cc0964a3f591692cf199270ca7b0befcfddc"
+    },
+    {
+      "path": "logo/png/neko-doan-icon-192.png",
+      "bytes": 39085,
+      "sha256": "ca003f61fd0f4c509fa13c7bd6558e916c0fd72c449376254149877119573347"
+    },
+    {
+      "path": "logo/png/neko-doan-icon-24.png",
+      "bytes": 1643,
+      "sha256": "ecf0fe022dbd2d93ea6de161aff4f9ab9c82014841ae79cab52e0191c6f785cb"
+    },
+    {
+      "path": "logo/png/neko-doan-icon-256.png",
+      "bytes": 61945,
+      "sha256": "c0a8e64be7164c8c0cac514f66ad959aeeabfb77d2141bdfdbe4864629d8ed00"
+    },
+    {
+      "path": "logo/png/neko-doan-icon-32.png",
+      "bytes": 2486,
+      "sha256": "6e7a1d23797cb0539fba07c51b13bd441de47d93507608028385b6634d81bf41"
+    },
+    {
+      "path": "logo/png/neko-doan-icon-48.png",
+      "bytes": 4551,
+      "sha256": "c0e4cfda87edeb1bc1ce0045614c679cc2f0fa5a1f7a7f8805245b1fbc63019c"
+    },
+    {
+      "path": "logo/png/neko-doan-icon-512.png",
+      "bytes": 226098,
+      "sha256": "c535abf36321c14d70d7fe3daf5aa8fc4ee9863e6834bb03e7ac94f33265634e"
+    },
+    {
+      "path": "logo/png/neko-doan-icon-64.png",
+      "bytes": 7232,
+      "sha256": "492246aeb71185c2f4c7174466f1cf0ce3bd3dfda8ad0e95f7ae79728807146e"
+    },
+    {
+      "path": "previews/neko-doan-lockup.png",
+      "bytes": 25407,
+      "sha256": "bfd9265daec1f53bd3e2335e103ba5fb17481f22789fab3d78f267bf4166b631"
+    },
+    {
+      "path": "previews/neko-doan-mark-on-dark.png",
+      "bytes": 21231,
+      "sha256": "0bdd804d8679ea90e852841e7a4f000b175e50d31187c4915b02ea1325b1f17c"
+    },
+    {
+      "path": "previews/neko-doan-mark-on-light.png",
+      "bytes": 20231,
+      "sha256": "ca0fc36f550a4beb4f9547e5c21c5062dff0be2a7ac87ca3ed25861bf2742a60"
+    },
+    {
+      "path": "PROMPTS.md",
+      "bytes": 1982,
+      "sha256": "6ca908db5f7db06f13744bae8cb8c5007919dfe8566095432e9ee6092fee6441"
+    },
+    {
+      "path": "PUBLIC_SEO_HANDOFF.md",
+      "bytes": 1847,
+      "sha256": "3468884333efd4d6d3dbde1977dc7e096d7be2ed65b3b0a2328e80de5b42cf73"
+    },
+    {
+      "path": "README.md",
+      "bytes": 2487,
+      "sha256": "6ccc5370983f2a0736e9203b6a736dea9afcf519dc016ae2408fb498b3e98d4c"
+    },
+    {
+      "path": "social/neko-doan-social-card.png",
+      "bytes": 45675,
+      "sha256": "d722e62ed3bc1125e9f12e920119d83287799ae8423162acf4e69ca26647af30"
+    },
+    {
+      "path": "social/neko-doan-social-card.svg",
+      "bytes": 2005,
+      "sha256": "6bce3df7cd06beebdedb479d847c4683d552176eb714c4f1e2fe8dd77dc3abe6"
+    }
+  ]
+}

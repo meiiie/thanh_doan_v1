@@ -12,11 +12,10 @@ import vn.haiphong.campaign.lifecycle.domain.ReviewCase;
 import vn.haiphong.campaign.lifecycle.domain.ReviewStatus;
 import vn.haiphong.campaign.lifecycle.domain.Submission;
 import vn.haiphong.campaign.lifecycle.domain.SubmissionStatus;
-import vn.haiphong.campaign.submission.application.UnitTaskView;
+import vn.haiphong.campaign.submission.application.UnitTaskGateway;
 
 @Repository
-public class UnitTaskRepository {
-    public static final String CAMPAIGN_ID = "campaign-summer-2026";
+public class UnitTaskRepository implements UnitTaskGateway {
     private final JdbcTemplate jdbc;
 
     public UnitTaskRepository(JdbcTemplate jdbc) {
@@ -44,7 +43,7 @@ public class UnitTaskRepository {
         return rows.stream().findFirst();
     }
 
-    public List<UnitTaskView.TaskView> tasks(String organizationId) {
+    public List<TaskRow> tasks(String organizationId) {
         return jdbc.query(
                 "select l.id line_id, g.code group_code, l.code line_code, l.title, l.requirement, " +
                         "l.evidence_hint, l.evidence_policy, l.report_template, l.maximum_score, t.name team_name, " +
@@ -72,7 +71,7 @@ public class UnitTaskRepository {
                         "where d2.review_case_id = rc.id and d2.round_number = 2 order by d2.revision desc fetch first 1 row only) " +
                         "left join app_account a2 on a2.id = r2.decided_by " +
                         "where o.id = ? and o.enabled = true order by g.display_order, l.display_order",
-                (rs, row) -> new UnitTaskView.TaskView(
+                (rs, row) -> new TaskRow(
                         rs.getString("line_id"), rs.getString("group_code"), rs.getString("line_code"),
                         rs.getString("title"), rs.getString("requirement"), rs.getString("evidence_hint"),
                         rs.getString("evidence_policy"), !"INTERNAL".equals(rs.getString("evidence_policy")),
@@ -262,10 +261,4 @@ public class UnitTaskRepository {
     private static String nullable(String value) { return value == null || value.isBlank() ? null : value.trim(); }
     private static BigDecimal zero(BigDecimal value) { return value == null ? BigDecimal.ZERO : value; }
 
-    public record CampaignRow(String id, String name, String phase) {}
-    public record OrganizationRow(String id, String name, String unitGroupCode, String unitGroupName) {}
-    public record TaskContext(String lineId, BigDecimal maximumScore, String evidencePolicy,
-                              boolean summaryRequired, String teamId, String reviewerId) {}
-    public record ExplanationContext(String reviewCaseId, int reviewVersion, BigDecimal selfScore,
-                                     BigDecimal roundOneScore, int explanationRevision) {}
 }

@@ -2,31 +2,8 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { firstValueFrom } from 'rxjs';
+import type { OrganizationDirectory as Directory } from '../../api/models';
 import { problemDetail } from '../../core/problem-detail';
-
-interface UnitGroup {
-  readonly code: string;
-  readonly name: string;
-  readonly documentedUnitCount: number;
-}
-interface Organization {
-  readonly id: string;
-  readonly code: string;
-  readonly name: string;
-  readonly unitGroupName: string;
-  readonly enabled: boolean;
-}
-interface ReviewTeam {
-  readonly id: string;
-  readonly code: string;
-  readonly name: string;
-  readonly enabled: boolean;
-}
-interface Directory {
-  readonly unitGroups: readonly UnitGroup[];
-  readonly organizations: readonly Organization[];
-  readonly teams: readonly ReviewTeam[];
-}
 
 @Component({
   selector: 'app-organization-directory-page',

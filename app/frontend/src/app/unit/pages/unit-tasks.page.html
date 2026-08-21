@@ -49,22 +49,6 @@
                         <strong>Yêu cầu bổ sung:</strong> {{ task.returnReason }}
                       </p>
                     }
-                    @if (task.roundOneScore !== null) {
-                      <p class="decision-note">
-                        <strong>Vòng 1: {{ task.roundOneScore }}/{{ task.maximumScore }}</strong>
-                        @if (task.roundOneReason) {
-                          · {{ task.roundOneReason }}
-                        }
-                      </p>
-                    }
-                    @if (task.roundTwoScore !== null) {
-                      <p class="decision-note final">
-                        <strong>Vòng 2: {{ task.roundTwoScore }}/{{ task.maximumScore }}</strong>
-                        @if (task.roundTwoReason) {
-                          · {{ task.roundTwoReason }}
-                        }
-                      </p>
-                    }
                   </td>
                   <td>
                     <input
@@ -90,39 +74,15 @@
                     /><small>{{ task.evidenceHint }}</small>
                   </td>
                   <td>
-                    @if (canExplain(task) || task.explanationRevision > 0) {
-                      <textarea
-                        rows="3"
-                        placeholder="Nội dung giải trình"
-                        [value]="draft(task).explanationBody"
-                        [disabled]="!canExplain(task)"
-                        (input)="setExplanation(task, $event)"
-                        [attr.aria-label]="'Giải trình ' + task.lineCode"
-                      ></textarea>
-                      <input
-                        type="url"
-                        placeholder="Link minh chứng bổ sung"
-                        [value]="draft(task).explanationEvidenceUrl"
-                        [disabled]="!canExplain(task)"
-                        (input)="setExplanationEvidence(task, $event)"
-                        [attr.aria-label]="'Link bổ sung ' + task.lineCode"
-                      />
-                      @if (task.explanationRevision > 0) {
-                        <small>Giải trình phiên {{ task.explanationRevision }}</small>
-                      }
-                    } @else {
-                      <textarea
-                        rows="2"
-                        [required]="task.summaryRequired"
-                        [placeholder]="
-                          task.summaryRequired ? 'Nhập báo cáo ngắn' : 'Không bắt buộc'
-                        "
-                        [value]="draft(task).summary"
-                        [disabled]="!editable(task)"
-                        (input)="setSummary(task, $event)"
-                        [attr.aria-label]="'Báo cáo ' + task.lineCode"
-                      ></textarea>
-                    }
+                    <textarea
+                      rows="2"
+                      [required]="task.summaryRequired"
+                      [placeholder]="task.summaryRequired ? 'Nhập báo cáo ngắn' : 'Không bắt buộc'"
+                      [value]="draft(task).summary"
+                      [disabled]="!editable(task)"
+                      (input)="setSummary(task, $event)"
+                      [attr.aria-label]="'Báo cáo ' + task.lineCode"
+                    ></textarea>
                   </td>
                   <td>
                     <span
@@ -149,16 +109,6 @@
                       >
                         Gửi
                       </button>
-                      @if (canExplain(task)) {
-                        <button
-                          type="button"
-                          class="send"
-                          [disabled]="busyLine() === task.lineId"
-                          (click)="submitExplanation(task)"
-                        >
-                          Gửi giải trình
-                        </button>
-                      }
                     </div>
                   </td>
                 </tr>

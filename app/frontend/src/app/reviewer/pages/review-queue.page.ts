@@ -95,7 +95,9 @@ export class ReviewQueuePage implements OnInit {
           ? item.status !== 'COMPLETED'
           : this.caseTab() === 'completed'
             ? item.status === 'COMPLETED'
-            : item.awardedScore !== null && item.awardedScore < item.selfScore;
+            : item.awardedScore !== null &&
+              item.awardedScore !== undefined &&
+              item.awardedScore < item.selfScore;
       return matchesCriterion && matchesQuery && matchesTab;
     });
   });
@@ -169,7 +171,11 @@ export class ReviewQueuePage implements OnInit {
   }
 
   protected editable(item: ReviewCase): boolean {
-    return item.status !== 'COMPLETED';
+    const phase = this.view()?.phase;
+    const activeRound =
+      (phase === 'ROUND_1' && item.roundNumber === 1) ||
+      (phase === 'ROUND_2' && item.roundNumber === 2);
+    return activeRound && item.status !== 'COMPLETED';
   }
 
   protected setScore(item: ReviewCase, event: Event): void {
@@ -215,8 +221,12 @@ export class ReviewQueuePage implements OnInit {
     const cases = (this.view()?.cases ?? []).filter((item) => item.groupCode === criterion.code);
     if (tab === 'pending') return cases.filter((item) => item.status !== 'COMPLETED').length;
     if (tab === 'completed') return cases.filter((item) => item.status === 'COMPLETED').length;
-    return cases.filter((item) => item.awardedScore !== null && item.awardedScore < item.selfScore)
-      .length;
+    return cases.filter(
+      (item) =>
+        item.awardedScore !== null &&
+        item.awardedScore !== undefined &&
+        item.awardedScore < item.selfScore,
+    ).length;
   }
 
   protected async complete(item: ReviewCase): Promise<void> {

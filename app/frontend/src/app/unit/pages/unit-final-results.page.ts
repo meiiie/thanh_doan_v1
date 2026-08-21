@@ -27,11 +27,13 @@ export class UnitFinalResultsPage implements OnInit {
     }
   }
 
-  protected formatScore(value: number | null): string {
-    return value === null ? '—' : value.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
+  protected formatScore(value: number | null | undefined): string {
+    return value === null || value === undefined
+      ? '—'
+      : value.toLocaleString('vi-VN', { maximumFractionDigits: 2 });
   }
 
-  protected formatPercent(value: number | null): string {
-    return value === null ? '—' : `${Math.round(value * 100)}%`;
+  protected formatPercent(value: number | null | undefined): string {
+    return value === null || value === undefined ? '—' : `${Math.round(value * 100)}%`;
   }
 }

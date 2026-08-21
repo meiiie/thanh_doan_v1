@@ -38,6 +38,25 @@ describe('ReviewQueuePage', () => {
     expect(host.textContent).toContain('Không có tiêu chí ở trạng thái này');
     expect(host.querySelectorAll('textarea, .assessment-form')).toHaveLength(0);
   });
+
+  it('keeps review controls disabled before round one opens', async () => {
+    fixture.detectChanges();
+    http.expectOne('/api/reviewer/queue').flush(queueBeforeRoundOne);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const criterion = host.querySelector<HTMLButtonElement>('.criterion-row');
+    if (!criterion) throw new Error('Missing criterion row');
+    criterion.click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const controls = host.querySelectorAll<
+      HTMLInputElement | HTMLTextAreaElement | HTMLButtonElement
+    >('.assessment-form input, .assessment-form textarea, .case-inspector footer button');
+    expect(controls.length).toBeGreaterThan(0);
+    expect([...controls].every((control) => control.disabled)).toBe(true);
+  });
 });
 
 const queueWithTeamOverview = {
@@ -74,4 +93,52 @@ const queueWithTeamOverview = {
   },
   criteria: [],
   cases: [],
+} satisfies ReviewQueue;
+
+const queueBeforeRoundOne = {
+  campaignId: 'campaign-summer-2026',
+  campaignName: 'Chiến dịch TNTN Hè 2026',
+  phase: 'SELF_ASSESSMENT',
+  teamId: 'team-pt',
+  teamName: 'Tổ Phong trào',
+  teamOverview: null,
+  criteria: [
+    {
+      groupId: 'group-01',
+      code: 'I.01',
+      title: 'Ngày Chủ nhật xanh',
+      lineCount: 1,
+      expectedCases: 1,
+      submittedCases: 1,
+      completedCases: 0,
+      adjustedCases: 0,
+      returnedCases: 0,
+    },
+  ],
+  cases: [
+    {
+      id: 'case-01',
+      organizationName: 'Đại học Hải Phòng',
+      groupCode: 'I.01',
+      lineCode: 'I.01.1',
+      lineTitle: 'Tổ chức hoạt động trồng mới cây xanh',
+      maximumScore: 3,
+      selfScore: 3,
+      evidenceUrl: 'https://minhchung.example/ho-so-01',
+      summary: 'Đơn vị đã triển khai hoạt động.',
+      roundNumber: 1,
+      status: 'QUEUED',
+      version: 0,
+      awardedScore: null,
+      reason: null,
+      evidenceChecked: false,
+      decidedByName: null,
+      decidedAt: null,
+      roundOneScore: null,
+      roundOneReason: null,
+      explanationBody: null,
+      explanationEvidenceUrl: null,
+      explanationRevision: 0,
+    },
+  ],
 } satisfies ReviewQueue;

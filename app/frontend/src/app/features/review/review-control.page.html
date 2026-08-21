@@ -277,7 +277,7 @@
               >
             </header>
 
-            @if (item.selfScore !== null) {
+            @if (item.selfScore !== null && item.selfScore !== undefined) {
               <section class="score-comparison" aria-label="Đối chiếu điểm">
                 <div>
                   <span>Tự chấm</span><strong>{{ item.selfScore }}</strong
@@ -302,7 +302,7 @@
                   <span>Phiên {{ item.submissionRevision }}</span>
                 }
               </div>
-              @if (item.selfScore === null) {
+              @if (item.selfScore === null || item.selfScore === undefined) {
                 <div class="detail-empty">
                   <app-icon name="document" />
                   <strong>Đơn vị chưa gửi hồ sơ</strong>
@@ -353,7 +353,7 @@
                   <dd>{{ item.evidenceChecked ? 'Có' : 'Chưa' }}</dd>
                 </div>
               </dl>
-              @if (item.awardedScore !== null) {
+              @if (item.awardedScore !== null && item.awardedScore !== undefined) {
                 <p class="decision-reason">
                   <strong>Lý do / nhận xét</strong>{{ item.reason || 'Không điều chỉnh điểm.' }}
                 </p>
@@ -363,13 +363,13 @@
             </section>
 
             @if (
-              item.roundOneScore !== null ||
+              (item.roundOneScore !== null && item.roundOneScore !== undefined) ||
               item.explanationRevision > 0 ||
-              item.roundTwoScore !== null
+              (item.roundTwoScore !== null && item.roundTwoScore !== undefined)
             ) {
               <section class="detail-section history-section">
                 <h4>Lịch sử xử lý</h4>
-                @if (item.roundOneScore !== null) {
+                @if (item.roundOneScore !== null && item.roundOneScore !== undefined) {
                   <article>
                     <i aria-hidden="true"></i>
                     <div>
@@ -399,7 +399,7 @@
                     </div>
                   </article>
                 }
-                @if (item.roundTwoScore !== null) {
+                @if (item.roundTwoScore !== null && item.roundTwoScore !== undefined) {
                   <article>
                     <i aria-hidden="true"></i>
                     <div>

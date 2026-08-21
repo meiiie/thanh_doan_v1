@@ -10,7 +10,7 @@ spring:
   flyway:
     enabled: true
   jackson:
-    default-property-inclusion: non_null
+    default-property-inclusion: always
 
 server:
   port: 8081

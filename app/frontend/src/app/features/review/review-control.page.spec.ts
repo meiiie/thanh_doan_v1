@@ -2,7 +2,11 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import type { ReviewControl, ReviewControlCriterionCases } from '../../api/models';
+import type {
+  ReviewControl,
+  ReviewControlCase,
+  ReviewControlCriterionCases,
+} from '../../api/models';
 import { ReviewControlPage } from './review-control.page';
 
 describe('ReviewControlPage', () => {
@@ -49,6 +53,28 @@ describe('ReviewControlPage', () => {
     const evidence = host.querySelector<HTMLAnchorElement>('.evidence-link');
     expect(evidence?.href).toBe('https://minhchung.example/ho-so-01');
     expect(evidence?.rel).toContain('noopener');
+  });
+
+  it('does not invent decision history when nullable fields are omitted', async () => {
+    fixture.detectChanges();
+    http.expectOne('/api/admin/review-control').flush(controlView);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const criterion = host.querySelector<HTMLButtonElement>('.control-table__row');
+    if (!criterion) throw new Error('Missing criterion row');
+    criterion.click();
+    fixture.detectChanges();
+
+    http
+      .expectOne('/api/admin/review-control/criteria/group-01/cases')
+      .flush(criterionCasesWithoutOptionalDecision);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    expect(host.textContent).toContain('Cán bộ chưa ghi quyết định');
+    expect(host.querySelector('.history-section')).toBeNull();
+    expect(host.textContent).not.toContain('Thẩm định vòng 2');
   });
 });
 
@@ -135,3 +161,26 @@ const criterionCases = {
     },
   ],
 } satisfies ReviewControlCriterionCases;
+
+function omitOptionalDecision({
+  awardedScore: _awardedScore,
+  reason: _reason,
+  decidedByName: _decidedByName,
+  decidedAt: _decidedAt,
+  roundOneScore: _roundOneScore,
+  roundOneReason: _roundOneReason,
+  roundOneDecidedByName: _roundOneDecidedByName,
+  roundOneDecidedAt: _roundOneDecidedAt,
+  roundTwoScore: _roundTwoScore,
+  roundTwoReason: _roundTwoReason,
+  roundTwoDecidedByName: _roundTwoDecidedByName,
+  roundTwoDecidedAt: _roundTwoDecidedAt,
+  ...item
+}: ReviewControlCase) {
+  return item;
+}
+
+const criterionCasesWithoutOptionalDecision = {
+  ...criterionCases,
+  cases: criterionCases.cases.map(omitOptionalDecision),
+};

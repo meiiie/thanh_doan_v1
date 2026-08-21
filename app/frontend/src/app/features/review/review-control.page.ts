@@ -68,7 +68,9 @@ export class ReviewControlPage implements OnInit {
         (this.caseFilter() === 'completed' && item.reviewStatus === 'COMPLETED') ||
         (this.caseFilter() === 'reduced' &&
           item.awardedScore !== null &&
+          item.awardedScore !== undefined &&
           item.selfScore !== null &&
+          item.selfScore !== undefined &&
           item.awardedScore < item.selfScore);
       return matchesQuery && matchesFilter;
     });
@@ -174,7 +176,11 @@ export class ReviewControlPage implements OnInit {
 
   protected isReduced(item: ReviewControlCase): boolean {
     return (
-      item.awardedScore !== null && item.selfScore !== null && item.awardedScore < item.selfScore
+      item.awardedScore !== null &&
+      item.awardedScore !== undefined &&
+      item.selfScore !== null &&
+      item.selfScore !== undefined &&
+      item.awardedScore < item.selfScore
     );
   }
 

@@ -80,8 +80,12 @@
               <span class="number">{{ item.selfScore }} / {{ item.maximumScore }}</span>
               <span>{{ item.evidenceUrl ? '1 liên kết' : 'Nội bộ' }}</span>
               <span class="number"
-                >{{ item.awardedScore === null ? '—' : item.awardedScore }} /
-                {{ item.maximumScore }}</span
+                >{{
+                  item.awardedScore === null || item.awardedScore === undefined
+                    ? '—'
+                    : item.awardedScore
+                }}
+                / {{ item.maximumScore }}</span
               >
               <span class="case-status" [class.complete]="item.status === 'COMPLETED'">
                 <i aria-hidden="true"></i

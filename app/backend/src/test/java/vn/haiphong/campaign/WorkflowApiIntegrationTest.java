@@ -96,10 +96,10 @@ class WorkflowApiIntegrationTest {
         String teamId = jdbc.queryForObject(
                 "select id from review_team where code = 'WORKFLOWTEAM'", String.class
         );
-        createAccount(superadmin, "workflow.unit", "Cán bộ đơn vị", "UNIT_MEMBER", organizationId, null);
-        createAccount(superadmin, "workflow.reviewer", "Cán bộ thẩm định", "REVIEWER", null, teamId);
-        createAccount(superadmin, "workflow.outsider", "Cán bộ ngoài phân công", "REVIEWER", null, teamId);
-        createAccount(superadmin, "workflow.approver", "Lãnh đạo phê duyệt", "CAMPAIGN_ADMIN", null, null);
+        createAccount(superadmin, "workflow.unit", "Cán bộ đơn vị", "UNIT_MEMBER", organizationId, null, false);
+        createAccount(superadmin, "workflow.reviewer", "Người theo dõi Tổ", "REVIEWER", null, teamId, true);
+        createAccount(superadmin, "workflow.outsider", "Cán bộ ngoài phân công", "REVIEWER", null, teamId, false);
+        createAccount(superadmin, "workflow.approver", "Lãnh đạo phê duyệt", "CAMPAIGN_ADMIN", null, null, false);
         String reviewerId = jdbc.queryForObject(
                 "select id from app_account where username = 'workflow.reviewer'", String.class
         );
@@ -143,12 +143,23 @@ class WorkflowApiIntegrationTest {
                         .contentType("application/json").content("{\"expectedVersion\":0}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.phase", is("SELF_ASSESSMENT")));
+        http.perform(get("/api/admin/review-control/criteria/{groupId}/cases", firstGroupId)
+                        .session(superadmin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cases", hasSize(1)))
+                .andExpect(jsonPath("$.cases[0].reviewStatus", is("NOT_SUBMITTED")))
+                .andExpect(jsonPath("$.cases[0].submissionRevision", is(0)))
+                .andExpect(jsonPath("$.cases[0].evidenceUrl").doesNotExist());
 
         MockHttpSession unit = loginAndChangePassword("workflow.unit", TEMPORARY_PASSWORD, UNIT_PASSWORD);
         String unitResponse = http.perform(get("/api/unit/tasks").session(unit))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.tasks", hasSize(1)))
                 .andReturn().getResponse().getContentAsString();
+        http.perform(get("/api/unit/results/final").session(unit))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.published", is(false)))
+                .andExpect(jsonPath("$.lines", hasSize(0)));
         String lineId = json.readTree(unitResponse).path("tasks").get(0).path("lineId").asText();
         http.perform(post("/api/unit/tasks/{lineId}/submit", lineId).session(unit).with(csrf())
                         .header("Idempotency-Key", "submit-workflow-line-v1")
@@ -176,14 +187,50 @@ class WorkflowApiIntegrationTest {
         );
         String queueResponse = http.perform(get("/api/reviewer/queue").session(reviewer))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.criteria", hasSize(1)))
+                .andExpect(jsonPath("$.criteria[0].expectedCases", is(1)))
+                .andExpect(jsonPath("$.criteria[0].submittedCases", is(1)))
+                .andExpect(jsonPath("$.criteria[0].completedCases", is(0)))
                 .andExpect(jsonPath("$.cases", hasSize(1)))
+                .andExpect(jsonPath("$.teamOverview.assignedCriteria", is(27)))
+                .andExpect(jsonPath("$.teamOverview.expectedCases", is(1)))
+                .andExpect(jsonPath("$.teamOverview.pendingCases", is(1)))
+                .andExpect(jsonPath("$.teamOverview.members", hasSize(2)))
+                .andExpect(jsonPath("$.teamOverview.members[0].teamMonitor", is(true)))
                 .andReturn().getResponse().getContentAsString();
+        http.perform(get("/api/admin/review-control").session(superadmin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.expectedCases", is(1)))
+                .andExpect(jsonPath("$.submittedCases", is(1)))
+                .andExpect(jsonPath("$.completedCases", is(0)))
+                .andExpect(jsonPath("$.canOpenExplanation", is(false)));
+        http.perform(get("/api/admin/review-control/criteria/{groupId}/cases", firstGroupId)
+                        .session(superadmin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.groupId", is(firstGroupId)))
+                .andExpect(jsonPath("$.cases", hasSize(1)))
+                .andExpect(jsonPath("$.cases[0].organizationName", is("Đơn vị kiểm chứng luồng")))
+                .andExpect(jsonPath("$.cases[0].evidenceUrl", is("https://minhchung.example/ho-so-01")))
+                .andExpect(jsonPath("$.cases[0].assessorName", is("Người theo dõi Tổ")))
+                .andExpect(jsonPath("$.cases[0].awardedScore").doesNotExist());
+        MockHttpSession campaignAdmin = loginAndChangePassword(
+                "workflow.approver", TEMPORARY_PASSWORD, APPROVER_PASSWORD
+        );
+        http.perform(get("/api/admin/review-control/criteria/{groupId}/cases", firstGroupId)
+                        .session(campaignAdmin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cases[0].evidenceUrl",
+                        is("https://minhchung.example/ho-so-01")));
+        http.perform(get("/api/admin/review-control/criteria/{groupId}/cases", firstGroupId)
+                        .session(unit))
+                .andExpect(status().isForbidden());
         String caseId = json.readTree(queueResponse).path("cases").get(0).path("id").asText();
         MockHttpSession outsider = loginAndChangePassword(
                 "workflow.outsider", TEMPORARY_PASSWORD, "Permanent-Outsider-Password-2026"
         );
         http.perform(get("/api/reviewer/queue").session(outsider))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.teamOverview").doesNotExist())
                 .andExpect(jsonPath("$.cases", hasSize(0)));
         http.perform(post("/api/reviewer/queue/{caseId}/round-one", caseId).session(outsider).with(csrf())
                         .header("Idempotency-Key", "outsider-review-attempt-v1")
@@ -222,17 +269,39 @@ class WorkflowApiIntegrationTest {
                                 "\"reason\":\"Minh chứng chỉ xác nhận một phần kết quả.\",\"expectedVersion\":2}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.cases[0].status", is("COMPLETED")));
+        http.perform(get("/api/unit/tasks").session(unit))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tasks[0].roundOneScore").doesNotExist())
+                .andExpect(jsonPath("$.tasks[0].roundOneReason").doesNotExist());
+        http.perform(get("/api/admin/review-control").session(superadmin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.completedCases", is(1)))
+                .andExpect(jsonPath("$.reductionsWithoutReason", is(0)))
+                .andExpect(jsonPath("$.canOpenExplanation", is(true)));
+        http.perform(get("/api/admin/review-control/criteria/{groupId}/cases", firstGroupId)
+                        .session(superadmin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cases[0].evidenceUrl",
+                        is("https://minhchung.example/ho-so-01-bo-sung")))
+                .andExpect(jsonPath("$.cases[0].awardedScore", is(0.5)))
+                .andExpect(jsonPath("$.cases[0].reason", startsWith("Minh chứng chỉ")))
+                .andExpect(jsonPath("$.cases[0].decidedByName", is("Người theo dõi Tổ")))
+                .andExpect(jsonPath("$.cases[0].roundOneScore", is(0.5)));
 
         http.perform(get("/api/assignments/current").session(superadmin))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.progress.reviewedTasks", is(1)))
-                .andExpect(jsonPath("$.plans[0].lastReviewedBy", is("Cán bộ thẩm định")));
+                .andExpect(jsonPath("$.plans[0].lastReviewedBy", is("Người theo dõi Tổ")));
 
-        http.perform(post("/api/assignments/current/publish-round-one").session(superadmin).with(csrf())
-                        .header("Idempotency-Key", "publish-round-one-workflow-v1")
+        http.perform(post("/api/assignments/current/open-explanation").session(superadmin).with(csrf())
+                        .header("Idempotency-Key", "open-explanation-workflow-v1")
                         .contentType("application/json").content("{\"expectedVersion\":2}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.phase", is("EXPLANATION")));
+        http.perform(get("/api/unit/tasks").session(unit))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tasks[0].roundOneScore", is(0.5)))
+                .andExpect(jsonPath("$.tasks[0].roundTwoScore").doesNotExist());
         http.perform(post("/api/unit/tasks/{lineId}/explanation", lineId).session(unit).with(csrf())
                         .header("Idempotency-Key", "explanation-workflow-v1")
                         .contentType("application/json")
@@ -256,6 +325,20 @@ class WorkflowApiIntegrationTest {
                                 "\"reason\":\"Đã ghi nhận một phần giải trình bổ sung.\",\"expectedVersion\":4}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.cases[0].status", is("COMPLETED")));
+        http.perform(get("/api/admin/review-control/criteria/{groupId}/cases", firstGroupId)
+                        .session(superadmin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.roundNumber", is(2)))
+                .andExpect(jsonPath("$.cases[0].awardedScore", is(0.75)))
+                .andExpect(jsonPath("$.cases[0].roundOneScore", is(0.5)))
+                .andExpect(jsonPath("$.cases[0].roundTwoScore", is(0.75)))
+                .andExpect(jsonPath("$.cases[0].explanationRevision", is(1)))
+                .andExpect(jsonPath("$.cases[0].explanationEvidenceUrl",
+                        is("https://minhchung.example/giai-trinh-01")));
+        http.perform(get("/api/unit/tasks").session(unit))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tasks[0].roundOneScore", is(0.5)))
+                .andExpect(jsonPath("$.tasks[0].roundTwoScore").doesNotExist());
 
         http.perform(post("/api/results/current/prepare").session(superadmin).with(csrf())
                         .header("Idempotency-Key", "prepare-result-workflow-v1")
@@ -269,10 +352,7 @@ class WorkflowApiIntegrationTest {
                         .contentType("application/json").content("{\"expectedResultVersion\":1}"))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.code", is("FOUR_EYES_REQUIRED")));
-        MockHttpSession approver = loginAndChangePassword(
-                "workflow.approver", TEMPORARY_PASSWORD, APPROVER_PASSWORD
-        );
-        http.perform(post("/api/results/current/approve").session(approver).with(csrf())
+        http.perform(post("/api/results/current/approve").session(campaignAdmin).with(csrf())
                         .header("Idempotency-Key", "approve-result-workflow-v1")
                         .contentType("application/json").content("{\"expectedResultVersion\":1}"))
                 .andExpect(status().isOk())
@@ -285,6 +365,13 @@ class WorkflowApiIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.phase", is("PUBLISHED")))
                 .andExpect(jsonPath("$.status", is("PUBLISHED")));
+        http.perform(get("/api/unit/results/final").session(unit))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.published", is(true)))
+                .andExpect(jsonPath("$.resultVersion", is(1)))
+                .andExpect(jsonPath("$.organizationName", is("Đơn vị kiểm chứng luồng")))
+                .andExpect(jsonPath("$.lines", hasSize(1)))
+                .andExpect(jsonPath("$.lines[0].finalScore", is(0.75)));
         byte[] export = http.perform(get("/api/results/current/export").session(superadmin))
                 .andExpect(status().isOk())
                 .andExpect(result -> org.junit.jupiter.api.Assertions.assertTrue(
@@ -305,7 +392,7 @@ class WorkflowApiIntegrationTest {
                 workbookParts.get("xl/worksheets/sheet2.xml").contains("https://minhchung.example/ho-so-01-bo-sung")
         );
         org.junit.jupiter.api.Assertions.assertTrue(
-                workbookParts.get("xl/worksheets/sheet2.xml").contains("Cán bộ thẩm định")
+                workbookParts.get("xl/worksheets/sheet2.xml").contains("Người theo dõi Tổ")
         );
         org.junit.jupiter.api.Assertions.assertTrue(
                 workbookParts.get("xl/worksheets/sheet3.xml").contains("SHA-256")
@@ -314,7 +401,7 @@ class WorkflowApiIntegrationTest {
         Integer auditCount = jdbc.queryForObject(
                 "select count(*) from audit_record where action in " +
                         "('CONFIGURE_SCORECARD_ASSIGNMENT','RELEASE_ASSIGNMENT_SNAPSHOT','SUBMIT_SUBMISSION'," +
-                        "'START_ROUND_ONE','RETURN_SUBMISSION','COMPLETE_ROUND_ONE','PUBLISH_ROUND_ONE'," +
+                        "'START_ROUND_ONE','RETURN_SUBMISSION','COMPLETE_ROUND_ONE','OPEN_EXPLANATION'," +
                         "'SUBMIT_EXPLANATION','START_ROUND_TWO','COMPLETE_ROUND_TWO','PREPARE_FINAL_RESULT'," +
                         "'APPROVE_FINAL_RESULT','PUBLISH_FINAL_RESULT')", Integer.class
         );
@@ -335,7 +422,7 @@ class WorkflowApiIntegrationTest {
     }
 
     private void createAccount(MockHttpSession superadmin, String username, String displayName, String role,
-                               String organizationId, String teamId) throws Exception {
+                               String organizationId, String teamId, boolean teamMonitor) throws Exception {
         java.util.HashMap<String, Object> command = new java.util.HashMap<>();
         command.put("username", username);
         command.put("displayName", displayName);
@@ -343,6 +430,7 @@ class WorkflowApiIntegrationTest {
         command.put("role", role);
         if (organizationId != null) command.put("organizationId", organizationId);
         if (teamId != null) command.put("teamId", teamId);
+        if (teamMonitor) command.put("teamMonitor", true);
         http.perform(post("/api/accounts").session(superadmin).with(csrf())
                         .contentType("application/json").content(json.writeValueAsString(command)))
                 .andExpect(status().isOk());

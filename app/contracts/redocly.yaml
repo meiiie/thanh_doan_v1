@@ -1,0 +1,10 @@
+extends:
+  - recommended
+
+rules:
+  info-license: off
+  operation-4xx-response: error
+  operation-operationId: error
+  no-ambiguous-paths: error
+  no-invalid-media-type-examples: error
+  no-unresolved-refs: error

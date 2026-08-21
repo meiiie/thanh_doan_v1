@@ -52,7 +52,8 @@ public class BootstrapSuperadminInitializer implements ApplicationRunner {
         }
         accounts.insert(
                 "account-" + UUID.randomUUID(), username.trim(), displayName.trim(), passwords.encode(password),
-                ActorRole.SUPERADMIN, null, null, false, OffsetDateTime.now(clock), null, Set.of(), Set.of()
+                ActorRole.SUPERADMIN, null, null, false, OffsetDateTime.now(clock), null, Set.of(), Set.of(),
+                null, null, null, null
         );
     }
 }

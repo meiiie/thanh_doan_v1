@@ -52,7 +52,7 @@ Header `X-Actor-Id` chỉ là identity provider của harness local. Bản vận
 - API: 9 integration test cho auth, request lỗi, redaction, rollback, idempotency, optimistic conflict, trả/gửi lại và đường đi đầy đủ.
 - Frontend: 21 unit/model test và production build.
 - Browser: 12 route; full journey và nhánh trả/gửi lại bằng API; desktop/tablet/mobile; 0 console error và 0 runtime error.
-- Ảnh duyệt: `app/frontend/artifacts/lifecycle-published-desktop.png`, `lifecycle-return-fix-desktop.png`, `lifecycle-resubmitted-desktop.png`, `lifecycle-published-mobile.png`, `platform-lifecycle-desktop.png`.
+- Bằng chứng giao diện được tái sinh bằng `app/frontend/e2e/admin-smoke.py`; ảnh chạy thử nằm ngoài Git.
 
 ## 6. Chưa thuộc phạm vi đã chứng minh
 

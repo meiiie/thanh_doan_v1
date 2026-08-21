@@ -36,9 +36,9 @@ FinalResultStatus
 | 2 | Đơn vị trong scope | Nộp hồ sơ | đủ các dòng áp dụng, điểm/link hợp lệ, trong hạn | tạo `SubmissionRevision`; trạng thái `SUBMITTED`; dữ liệu revision chỉ đọc |
 | 3 | Cán bộ được assignment | Hoàn thành vòng 1 | đúng case, đã kiểm tra minh chứng, điểm hợp lệ, có lý do nếu giảm | thêm `ReviewDecision(round=1)`; không sửa dữ liệu đơn vị |
 | 4 | Tổ/Cán bộ | Gửi gói hạng mục | tất cả case thuộc hạng mục đã hoàn thành | tạo `ReviewResultBatch(round=1)` chỉ đọc |
-| 5 | Admin có `round1.publish` | Công bố vòng 1 và mở giải trình | mọi hạng mục bắt buộc đã nhận hoặc có quyết định ngoại lệ | đơn vị nhìn thấy vòng 1; campaign sang `EXPLANATION`; ghi hạn giải trình |
-| 6 | Đơn vị | Gửi giải trình | trong hạn; dòng cho phép giải trình | thêm `ExplanationRevision`; minh chứng bổ sung không ghi đè bản cũ |
-| 7 | Cán bộ được assignment vòng 2 | Hoàn thành vòng 2 | giải trình đã khóa hoặc không có giải trình khi hết hạn | thêm `ReviewDecision(round=2)`; vòng 1 còn nguyên |
+| 5 | Admin có `explanation.open` | Khóa vòng 1 và mở giải trình | mọi lượt vòng 1 hoàn tất; mọi dòng giảm điểm có lý do | campaign sang `EXPLANATION`; không công khai bảng điểm vòng 1; đơn vị chỉ thấy dòng `round1 < self` cần xử lý |
+| 6 | Đơn vị | Gửi giải trình | trong hạn; điểm vòng 1 thấp hơn điểm tự chấm | thêm `ExplanationRevision`; dòng bằng/tăng điểm không được giải trình; minh chứng bổ sung không ghi đè bản cũ |
+| 7 | Cán bộ được assignment vòng 2 | Hoàn thành vòng 2 chọn lọc | dòng bị giảm đã có giải trình hoặc waiver hợp lệ | chỉ case `round1 < self` vào queue và thêm `ReviewDecision(round=2)`; case `round1 >= self` giữ `NOT_OPEN` |
 | 8 | Admin có `result.prepare` | Lập kết quả cuối | tất cả case đã kết thúc; công thức/golden case đạt | tạo `FinalResultSnapshot` ở `PENDING_APPROVAL`, kèm checksum |
 | 9 | Admin khác có `result.approve` | Duyệt kết quả | người duyệt khác người lập; snapshot/version còn hiện hành | snapshot sang `APPROVED` |
 | 10 | Admin có `campaign.publish` | Công bố kết quả | snapshot đã duyệt, chưa bị supersede | snapshot/campaign sang `PUBLISHED`; chỉ đọc với mọi actor |
@@ -55,7 +55,7 @@ Walking skeleton đầu tiên chỉ dùng một campaign, một scorecard line, 
 
 ### 3.2. Trả quyết định thẩm định
 
-- Admin/Tổ trưởng có capability được cấp mới được trả một case hoặc cả gói.
+- Chỉ Admin có capability trả hồ sơ/decision được thực hiện thao tác này. SubAdmin1 không có quyền trả, duyệt hoặc sửa quyết định chỉ vì họ theo dõi Tổ.
 - Bản quyết định đã gửi vẫn đọc được. Lần xử lý lại tạo revision mới và gói mới; Admin nhìn thấy “thay thế bản N”, không thấy một ô âm thầm đổi điểm.
 
 ### 3.3. Sau công bố cuối
@@ -78,6 +78,13 @@ rate = total / 83
 ```
 
 Không có giải trình không đồng nghĩa điểm vòng 1 bị xóa. Vòng 2 chỉ thay thế giá trị hiệu lực của đúng dòng đã có quyết định vòng 2. Công thức `83`, cap thưởng `25` và ngưỡng xếp loại tiếp tục là oracle workbook; các bất nhất II.1/không áp dụng vẫn cần golden case khách hàng xác nhận trước production.
+
+Quy tắc hiển thị bắt buộc:
+
+- Trong `ROUND_1`, API đơn vị không trả điểm, lý do hay người chấm.
+- Từ `EXPLANATION`, API đơn vị chỉ trả quyết định vòng 1 của dòng `round1 < self`; điểm vòng 2 vẫn ẩn.
+- Đơn vị chỉ thấy đầy đủ điểm sau khi snapshot cuối đã duyệt bốn mắt và được công bố.
+- Điểm hiệu lực khi lập snapshot là `round2` cho dòng bị giảm; ngược lại dùng thẳng `round1`.
 
 ## 5. Quyền và nguyên tắc bốn mắt
 

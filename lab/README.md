@@ -10,26 +10,26 @@ Lab là cổng kiểm soát trước khi viết lại ứng dụng chính. Mỗi
 
 `dữ liệu thật → mô hình nghiệp vụ → kiến trúc thông tin → ảnh mẫu → prototype local → kiểm thử → quyết định triển khai`
 
-Bản React/Vinext trong `../web` được giữ như executable specification và regression harness cho quy trình đã kiểm chứng. Nó không phải design reference và không tự động trở thành nền production.
+Prototype React/Vinext đã được loại khỏi cây hiện hành sau khi Angular/Spring thay thế toàn bộ vai trò runtime và regression harness. Quy tắc đã xác nhận phải nằm trong test hoặc tài liệu quyết định, không duy trì một sản phẩm thứ hai để làm đặc tả.
 
 ## Tài liệu
 
 - `PROGRESS.md`: trạng thái các lát cắt và cổng kiểm thử hiện hành.
+- `modules/README.md`: sổ đăng ký module đã chốt, đang thẩm định và chờ dữ liệu.
+- `modules/IDENTITY_ACCESS.md`: hồ sơ chốt luồng login/password-session, giao thức, quyền, test và production gates.
 - `IMPLEMENTATION_ACCEPTANCE.md`: ma trận nghiệm thu cho vòng đời đầy đủ, tải, accessibility, TLS/secrets và backup.
 - `DECISION_LOG.md`: quyết định nghiệp vụ đã xác nhận, có mã và hệ quả dữ liệu/UX.
 - `PRODUCT_ARCHITECTURE.md`: ranh giới miền, kiến trúc DDD, stack và các quyết định kỹ thuật.
 - `UX_ARCHITECTURE.md`: vai trò, task model, sidebar, màn hình và wireflow.
 - `DESIGN_SYSTEM.md`: design principles, token chuẩn hóa và quy tắc component.
 - `DESIGN_SPEC_V2.md`: redline định lượng cho grid, typography, color, component và motion.
-- `brand/NAMING_AND_IDENTITY_EXPLORATION.md`: kiến trúc tên, so sánh phương án, concept logo và ranh giới SEO/noindex.
+- `brand/NAMING_AND_IDENTITY_EXPLORATION.md`: kiến trúc tên, Neko Family v1, concept gate, tài sản phát hành và ranh giới SEO/noindex.
+- `../docs/assets/brand/neko-doan-v1/`: brand kit tự chứa gồm nguồn vector, icon theo cỡ, social card, provenance imagegen và manifest hash.
+- `../docs/assets/icons/neko-interface-v1/`: tập con SVG chức năng có provenance/checksum cho bề mặt xác thực.
 - `TABLE_READABILITY_REVIEW.md`: nghiên cứu chính thống và redline cho bảng danh mục nhập từ Excel.
-- `SCORECARD_FOCUS_WORKBENCH_AUDIT.md`: audit trước/sau cho chế độ phân công toàn vùng nội dung.
 - `MODULE_NAVIGATION.md`: phân hệ, role sidebar, contextual rail và route grammar.
 - `HARNESS.md`: cách làm việc, quality gates và chiến lược kiểm thử.
 - `COMPLETION_AUDIT_ADMIN.md`: ma trận yêu cầu – bằng chứng cho phạm vi Admin local đã hoàn tất.
-- `specimen/`: mẫu HTML/CSS local có thể đo và tương tác; nguồn chính xác hơn ảnh AI.
-- `prompts/`: prompt có phiên bản dùng để tạo ảnh mẫu.
-- `mockups/`: đầu ra imagegen; là vật liệu duyệt thiết kế, không phải asset giao diện cuối.
 - `../app/frontend/`: bản thực thi local của những phân hệ đã qua quyết định thiết kế; bắt đầu với Admin.
 - `ba/`: BA Lab reverse-engineer workbook AS-IS, lựa chọn mô hình sản phẩm và backlog khám phá.
 - `ba/11_ACCESS_HIERARCHY.md`: ranh giới Superadmin, nhiều Admin chiến dịch, grant và acceptance phân quyền.
@@ -58,3 +58,4 @@ Phân hệ Admin được phép phát triển độc lập bằng fixture để 
 - Quyền được kiểm tra ở server trên từng yêu cầu và mặc định từ chối.
 - Mọi thay đổi nghiệp vụ quan trọng cùng giao dịch với audit record.
 - Không có abstraction, dependency hay hạ tầng “để sau này có thể cần”.
+- Ảnh kiểm thử và mockup được tái sinh khi cần, không commit vào cây sản phẩm.

@@ -52,12 +52,12 @@ public final class AssignmentController {
         return assignments.startReview(command, idempotencyKey);
     }
 
-    @PostMapping("/publish-round-one")
-    AssignmentWorkbenchView publishRoundOne(
+    @PostMapping("/open-explanation")
+    AssignmentWorkbenchView openExplanation(
             @RequestBody AssignmentService.VersionCommand command,
             @RequestHeader("Idempotency-Key") String idempotencyKey
     ) {
-        return assignments.publishRoundOne(command, idempotencyKey);
+        return assignments.openExplanation(command, idempotencyKey);
     }
 
     @PostMapping("/start-round-two")

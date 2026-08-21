@@ -2,11 +2,10 @@ import { DOCUMENT, PercentPipe } from '@angular/common';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import type { FinalResultView, ResultStatus } from '../../api/models';
 import { AuthService } from '../../core/auth/auth.service';
 import { problemDetail } from '../../core/problem-detail';
 import { CampaignPhase } from '../../shared/domain-types';
-
-type ResultStatus = 'PENDING_APPROVAL' | 'APPROVED' | 'PUBLISHED';
 
 /** Trang này chỉ cần nhãn cho các giai đoạn gần cuối vòng đời. */
 const PHASE_LABELS = new Map<CampaignPhase, string>([
@@ -14,40 +13,6 @@ const PHASE_LABELS = new Map<CampaignPhase, string>([
   ['FINAL_REVIEW', 'Chốt kết quả'],
   ['PUBLISHED', 'Đã công bố'],
 ]);
-
-interface UnitResult {
-  readonly organizationId: string;
-  readonly organizationCode: string;
-  readonly organizationName: string;
-  readonly unitGroupCode: string;
-  readonly applicableCoreMaximum: number;
-  readonly coreScore: number;
-  readonly bonusRawScore: number;
-  readonly bonusCappedScore: number;
-  readonly totalScore: number;
-  readonly completionRate: number;
-}
-
-interface ResultView {
-  readonly campaignName: string;
-  readonly phase: CampaignPhase;
-  readonly campaignVersion: number;
-  readonly expectedTasks: number;
-  readonly completedRoundTwo: number;
-  readonly resultId: string | null;
-  readonly resultVersion: number | null;
-  readonly status: ResultStatus | null;
-  readonly aggregateTotal: number;
-  readonly checksum: string | null;
-  readonly preparedBy: string | null;
-  readonly preparedAt: string | null;
-  readonly approvedBy: string | null;
-  readonly approvedAt: string | null;
-  readonly publishedBy: string | null;
-  readonly publishedAt: string | null;
-  readonly version: number;
-  readonly units: readonly UnitResult[];
-}
 
 @Component({
   selector: 'app-final-results-page',
@@ -60,7 +25,7 @@ export class FinalResultsPage implements OnInit {
   private readonly http = inject(HttpClient);
   private readonly document = inject(DOCUMENT);
   protected readonly auth = inject(AuthService);
-  protected readonly view = signal<ResultView | null>(null);
+  protected readonly view = signal<FinalResultView | null>(null);
   protected readonly message = signal('');
   protected readonly busy = signal(false);
 
@@ -68,15 +33,15 @@ export class FinalResultsPage implements OnInit {
     await this.load();
   }
 
-  protected canPrepare(data: ResultView): boolean {
+  protected canPrepare(data: FinalResultView): boolean {
     return (
       data.phase === 'ROUND_2' &&
       data.expectedTasks > 0 &&
-      data.completedRoundTwo === data.expectedTasks
+      data.resolvedTasks === data.expectedTasks
     );
   }
 
-  protected isOwnSnapshot(data: ResultView): boolean {
+  protected isOwnSnapshot(data: FinalResultView): boolean {
     return data.preparedBy === this.auth.account()?.displayName;
   }
 
@@ -93,7 +58,10 @@ export class FinalResultsPage implements OnInit {
     return PHASE_LABELS.get(phase) ?? phase;
   }
 
-  protected async act(action: 'prepare' | 'approve' | 'publish', data: ResultView): Promise<void> {
+  protected async act(
+    action: 'prepare' | 'approve' | 'publish',
+    data: FinalResultView,
+  ): Promise<void> {
     if (this.busy()) return;
     this.busy.set(true);
     this.message.set('');
@@ -105,7 +73,7 @@ export class FinalResultsPage implements OnInit {
           : { expectedResultVersion: data.version, expectedCampaignVersion: data.campaignVersion };
     try {
       const updated = await firstValueFrom(
-        this.http.post<ResultView>(`/api/results/current/${action}`, body, {
+        this.http.post<FinalResultView>(`/api/results/current/${action}`, body, {
           headers: { 'Idempotency-Key': crypto.randomUUID() },
         }),
       );
@@ -127,7 +95,7 @@ export class FinalResultsPage implements OnInit {
     }
   }
 
-  protected async download(data: ResultView): Promise<void> {
+  protected async download(data: FinalResultView): Promise<void> {
     if (!data.resultId || this.busy()) return;
     this.busy.set(true);
     this.message.set('');
@@ -151,7 +119,7 @@ export class FinalResultsPage implements OnInit {
 
   private async load(): Promise<void> {
     try {
-      this.view.set(await firstValueFrom(this.http.get<ResultView>('/api/results/current')));
+      this.view.set(await firstValueFrom(this.http.get<FinalResultView>('/api/results/current')));
     } catch {
       this.message.set('Không đọc được kết quả chiến dịch.');
     }

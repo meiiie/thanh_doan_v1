@@ -10,7 +10,7 @@ public record FinalResultView(
         String phase,
         int campaignVersion,
         int expectedTasks,
-        int completedRoundTwo,
+        int resolvedTasks,
         String resultId,
         Integer resultVersion,
         String status,

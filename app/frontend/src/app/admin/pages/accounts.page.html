@@ -1,0 +1,152 @@
+<section class="accounts-page">
+  <header>
+    <div>
+      <p class="eyebrow">Quản trị truy cập</p>
+      <h1>Tài khoản và phạm vi quyền</h1>
+      <p>
+        Mỗi người đăng nhập bằng tài khoản riêng. Superadmin có toàn quyền; các vai trò khác bị giới
+        hạn ở máy chủ.
+      </p>
+    </div>
+    <button type="button" (click)="formOpen.set(!formOpen())">
+      {{ formOpen() ? 'Đóng' : 'Tạo tài khoản' }}
+    </button>
+  </header>
+
+  @if (formOpen()) {
+    <form (ngSubmit)="create()" aria-label="Tạo tài khoản">
+      <div>
+        <label for="displayName">Tên hiển thị</label
+        ><input id="displayName" name="displayName" [(ngModel)]="displayName" required />
+      </div>
+      <div>
+        <label for="username">Tên đăng nhập</label
+        ><input
+          id="username"
+          name="username"
+          [(ngModel)]="username"
+          pattern="[a-z0-9._-]{3,40}"
+          required
+        />
+      </div>
+      <div>
+        <label for="password">Mật khẩu khởi tạo</label
+        ><input
+          id="password"
+          name="password"
+          type="password"
+          [(ngModel)]="password"
+          minlength="15"
+          maxlength="72"
+          autocomplete="new-password"
+          required
+        />
+      </div>
+      <div>
+        <label for="role">Vai trò</label
+        ><select id="role" name="role" [(ngModel)]="role">
+          <option value="CAMPAIGN_ADMIN">Admin chiến dịch</option>
+          <option value="REVIEWER">Cán bộ thẩm định</option>
+          <option value="UNIT_MEMBER">Tài khoản đơn vị</option>
+          <option value="SUPERADMIN">Superadmin</option>
+        </select>
+      </div>
+      @if (role === 'UNIT_MEMBER') {
+        <div>
+          <label for="organizationId">Đơn vị</label
+          ><select id="organizationId" name="organizationId" [(ngModel)]="organizationId" required>
+            <option value="" disabled>Chọn đơn vị đã khai báo</option>
+            @for (organization of directory().organizations; track organization.id) {
+              <option [value]="organization.id">
+                {{ organization.code }} · {{ organization.name }}
+              </option>
+            }
+          </select>
+        </div>
+      }
+      @if (role === 'REVIEWER') {
+        <div>
+          <label for="teamId">Tổ theo dõi</label
+          ><select id="teamId" name="teamId" [(ngModel)]="teamId" required>
+            <option value="" disabled>Chọn tổ đã khai báo</option>
+            @for (team of directory().teams; track team.id) {
+              <option [value]="team.id">{{ team.code }} · {{ team.name }}</option>
+            }
+          </select>
+        </div>
+      }
+      <div class="form-actions">
+        <span>Mật khẩu khởi tạo 15–72 ký tự; tài khoản phải đổi ở lần đầu.</span>
+        <button type="submit" [disabled]="saving()">
+          {{ saving() ? 'Đang lưu…' : 'Tạo tài khoản' }}
+        </button>
+      </div>
+      @if (formError()) {
+        <p class="error" role="alert">{{ formError() }}</p>
+      }
+    </form>
+  }
+
+  <div class="account-table" tabindex="0" aria-label="Danh sách tài khoản">
+    <div class="table-title">
+      <strong>{{ accounts().length }} tài khoản</strong><span>Dữ liệu trực tiếp từ backend</span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Tài khoản</th>
+          <th>Vai trò</th>
+          <th>Phạm vi</th>
+          <th>Trạng thái</th>
+          <th class="action-column">Thao tác</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (account of accounts(); track account.id) {
+          <tr>
+            <td>
+              <strong>{{ account.displayName }}</strong
+              ><span>{{ account.username }}</span>
+            </td>
+            <td class="action-cell">
+              @if (account.role !== 'SUPERADMIN') {
+                <button
+                  type="button"
+                  class="status-action"
+                  [class.unlock]="!account.enabled"
+                  [disabled]="updatingAccountId() === account.id"
+                  (click)="setEnabled(account, !account.enabled)"
+                >
+                  {{
+                    updatingAccountId() === account.id
+                      ? 'Đang lưu…'
+                      : account.enabled
+                        ? 'Khóa'
+                        : 'Mở khóa'
+                  }}
+                </button>
+              }
+            </td>
+            <td>{{ roleLabel(account.role) }}</td>
+            <td>{{ scopeLabel(account) }}</td>
+            <td>
+              <span class="state" [class.active]="account.enabled">{{
+                account.enabled ? 'Đang hoạt động' : 'Đã khóa'
+              }}</span>
+              @if (account.passwordChangeRequired) {
+                <small>Chờ đổi mật khẩu</small>
+              }
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="5" class="empty">Chưa có tài khoản.</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  @if (loadError()) {
+    <p class="error" role="alert">{{ loadError() }}</p>
+  }
+</section>

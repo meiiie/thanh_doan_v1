@@ -67,7 +67,7 @@ if ($Start) {
     $env:TLS_APP_PORT = $Port.ToString()
     Push-Location $projectRoot
     try {
-      docker compose -p campaign-secure-local -f compose.yaml -f compose.secure-local.yaml up --build -d
+      docker compose -p neko-doan-secure-local -f compose.yaml -f compose.secure-local.yaml up --build -d
       if ($LASTEXITCODE -ne 0) { throw 'Secure local stack did not start.' }
     }
     finally {
@@ -81,5 +81,6 @@ if ($Start) {
     $env:TLS_APP_PORT = $previousTlsPort
   }
   Write-Host "Secure local URL: https://127.0.0.1:$Port/login"
+  Write-Host 'Mode: SECURE LOCAL UAT (production build + PostgreSQL + TLS)'
   Write-Host 'The certificate is self-signed for local verification only.'
 }

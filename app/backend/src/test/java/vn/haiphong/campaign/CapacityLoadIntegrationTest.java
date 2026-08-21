@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
@@ -45,6 +46,8 @@ class CapacityLoadIntegrationTest {
     private static final int ORGANIZATION_COUNT = 134;
     private static final int LINE_COUNT = 55;
     private static final int EXPECTED_TASKS = ORGANIZATION_COUNT * LINE_COUNT;
+    private static final int RESULT_VIEW_SAMPLES = 20;
+    private static final double RESULT_VIEW_P95_BUDGET_MILLIS = 250;
 
     @Container
     static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:18-alpine")
@@ -150,7 +153,7 @@ class CapacityLoadIntegrationTest {
         assertEquals(LINE_COUNT, lines.size());
         List<Object[]> submissions = new ArrayList<>(EXPECTED_TASKS);
         List<Object[]> cases = new ArrayList<>(EXPECTED_TASKS);
-        List<Object[]> decisions = new ArrayList<>(EXPECTED_TASKS * 2);
+        List<Object[]> decisions = new ArrayList<>(EXPECTED_TASKS);
         for (int org = 1; org <= ORGANIZATION_COUNT; org++) {
             for (int line = 0; line < lines.size(); line++) {
                 String suffix = String.format("%03d-%02d", org, line + 1);
@@ -164,9 +167,8 @@ class CapacityLoadIntegrationTest {
                         "Hồ sơ kiểm thử tải có nguồn và người chịu trách nhiệm.", 1, 1, now, actorId
                 });
                 cases.add(new Object[]{caseId, submissionId, lineId, "load-team", actorId,
-                        "COMPLETED", "COMPLETED", 2});
+                        "COMPLETED", "NOT_OPEN", 1});
                 decisions.add(new Object[]{"ld1-" + suffix, caseId, 1, 1, maximum, null, true, actorId, now});
-                decisions.add(new Object[]{"ld2-" + suffix, caseId, 2, 1, maximum, null, true, actorId, now});
             }
         }
         jdbc.batchUpdate(
@@ -195,9 +197,31 @@ class CapacityLoadIntegrationTest {
                         .contentType("application/json").content("{\"expectedCampaignVersion\":4}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.expectedTasks").value(EXPECTED_TASKS))
-                .andExpect(jsonPath("$.completedRoundTwo").value(EXPECTED_TASKS))
+                .andExpect(jsonPath("$.resolvedTasks").value(EXPECTED_TASKS))
                 .andExpect(jsonPath("$.units.length()").value(ORGANIZATION_COUNT));
         timer.stop();
+        for (int warmup = 0; warmup < 3; warmup++) {
+            http.perform(get("/api/results/current").session(session))
+                    .andExpect(status().isOk());
+        }
+        List<Long> resultViewSamples = new ArrayList<>(RESULT_VIEW_SAMPLES);
+        int resultViewBytes = 0;
+        for (int sample = 0; sample < RESULT_VIEW_SAMPLES; sample++) {
+            long startedAt = System.nanoTime();
+            byte[] response = http.perform(get("/api/results/current").session(session))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.units.length()").value(ORGANIZATION_COUNT))
+                    .andReturn().getResponse().getContentAsByteArray();
+            resultViewSamples.add(System.nanoTime() - startedAt);
+            resultViewBytes = response.length;
+        }
+        double p50Millis = percentileMilliseconds(resultViewSamples, 0.50);
+        double p95Millis = percentileMilliseconds(resultViewSamples, 0.95);
+        double maxMillis = percentileMilliseconds(resultViewSamples, 1.00);
+        System.out.printf(Locale.ROOT,
+                "PERF_BASELINE dataset=134x55 operation=result-view samples=%d p50Ms=%.2f p95Ms=%.2f maxMs=%.2f responseBytes=%d%n",
+                RESULT_VIEW_SAMPLES, p50Millis, p95Millis, maxMillis, resultViewBytes);
+
         timer.start("xlsx-export");
         byte[] workbook = http.perform(get("/api/results/current/export").session(session))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsByteArray();
@@ -212,6 +236,16 @@ class CapacityLoadIntegrationTest {
         assertTrue(workbook.length > 100_000, "Workbook phải chứa toàn bộ dữ liệu đối soát");
         assertTrue(timer.getTaskInfo()[0].getTime(TimeUnit.SECONDS) < 20, timer.prettyPrint());
         assertTrue(timer.getTaskInfo()[1].getTime(TimeUnit.SECONDS) < 10, timer.prettyPrint());
+        assertTrue(p95Millis < RESULT_VIEW_P95_BUDGET_MILLIS,
+                "Result view p95 %.2f ms exceeded %.0f ms".formatted(
+                        p95Millis, RESULT_VIEW_P95_BUDGET_MILLIS));
+    }
+
+    private static double percentileMilliseconds(List<Long> samples, double percentile) {
+        List<Long> ordered = new ArrayList<>(samples);
+        ordered.sort(Long::compareTo);
+        int index = Math.max(0, (int) Math.ceil(percentile * ordered.size()) - 1);
+        return ordered.get(index) / 1_000_000.0;
     }
 
     private MockHttpSession login() throws Exception {

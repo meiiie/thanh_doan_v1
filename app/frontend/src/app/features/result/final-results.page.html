@@ -19,7 +19,7 @@
       <div>
         <small id="result-state-title">Trạng thái chốt</small>
         <strong>{{ statusLabel(data.status) }}</strong>
-        <span>{{ data.completedRoundTwo }}/{{ data.expectedTasks }} dòng đã hoàn tất vòng 2</span>
+        <span>{{ data.resolvedTasks }}/{{ data.expectedTasks }} dòng đã chốt</span>
       </div>
       <div class="control-actions">
         @if (!data.resultId) {
@@ -113,7 +113,10 @@
     } @else {
       <section class="empty-result">
         <strong>Chưa có snapshot kết quả</strong>
-        <p>Snapshot chỉ được lập khi đủ {{ data.expectedTasks }} dòng hoàn tất vòng 2.</p>
+        <p>
+          Snapshot chỉ được lập khi đủ {{ data.expectedTasks }} dòng đã chốt; riêng dòng bị giảm
+          điểm phải hoàn tất vòng 2.
+        </p>
       </section>
     }
   }

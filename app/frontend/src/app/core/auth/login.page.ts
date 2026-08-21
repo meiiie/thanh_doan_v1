@@ -1,4 +1,12 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  effect,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from './auth.service';
@@ -17,9 +25,22 @@ export class LoginPage {
 
   protected username = '';
   protected password = '';
+  protected readonly stage = signal<'identifier' | 'password'>('identifier');
   protected readonly submitting = signal(false);
   protected readonly error = signal('');
   protected readonly showPassword = signal(false);
+  protected readonly portalLabel = (() => {
+    switch (globalThis.location?.port) {
+      case '4317':
+        return 'Bản phát triển';
+      case '4319':
+        return 'Kiểm định TLS';
+      default:
+        return 'Cổng nội bộ';
+    }
+  })();
+  protected readonly usernameInput = viewChild<ElementRef<HTMLInputElement>>('usernameInput');
+  protected readonly passwordInput = viewChild<ElementRef<HTMLInputElement>>('passwordInput');
   protected readonly notice = (() => {
     switch (this.route.snapshot.queryParamMap.get('reason')) {
       case 'session-expired':
@@ -31,8 +52,36 @@ export class LoginPage {
     }
   })();
 
-  protected async submit(): Promise<void> {
+  constructor() {
+    effect(() => {
+      const input = this.stage() === 'identifier' ? this.usernameInput() : this.passwordInput();
+      if (!this.submitting()) input?.nativeElement.focus();
+    });
+  }
+
+  protected continueToPassword(): void {
+    const username = this.username.trim();
+    if (!username) {
+      this.usernameInput()?.nativeElement.focus();
+      return;
+    }
+    this.username = username;
+    this.password = '';
+    this.error.set('');
+    this.showPassword.set(false);
+    this.stage.set('password');
+  }
+
+  protected editUsername(): void {
     if (this.submitting()) return;
+    this.password = '';
+    this.error.set('');
+    this.showPassword.set(false);
+    this.stage.set('identifier');
+  }
+
+  protected async submit(): Promise<void> {
+    if (this.submitting() || !this.username || !this.password) return;
     this.submitting.set(true);
     this.error.set('');
     try {
@@ -49,9 +98,13 @@ export class LoginPage {
         { replaceUrl: true },
       );
     } catch {
+      this.showPassword.set(false);
       this.error.set('Tên đăng nhập hoặc mật khẩu không đúng.');
     } finally {
       this.submitting.set(false);
+      if (this.error()) {
+        setTimeout(() => this.passwordInput()?.nativeElement.focus());
+      }
     }
   }
 }

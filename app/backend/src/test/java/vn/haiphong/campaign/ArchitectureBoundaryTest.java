@@ -32,8 +32,49 @@ class ArchitectureBoundaryTest {
         }
     }
 
+    @Test
+    void application_code_does_not_import_infrastructure_or_web() throws IOException {
+        Path sources = Path.of("src", "main", "java");
+        try (var files = Files.walk(sources)) {
+            for (Path file : files.filter(this::isApplicationJavaFile).toList()) {
+                String source = Files.readString(file);
+                assertFalse(
+                        source.contains(".infrastructure.") || source.contains(".web."),
+                        () -> file + " points outward from the application boundary"
+                );
+            }
+        }
+    }
+
+    @Test
+    void infrastructure_adapters_do_not_construct_http_view_models() throws IOException {
+        Path sources = Path.of("src", "main", "java");
+        try (var files = Files.walk(sources)) {
+            for (Path file : files.filter(this::isInfrastructureJavaFile).toList()) {
+                String source = Files.readString(file);
+                boolean importsApplicationView = source.lines().anyMatch(line ->
+                        line.startsWith("import ") && line.contains(".application.") && line.contains("View;")
+                );
+                assertFalse(
+                        importsApplicationView,
+                        () -> file + " couples persistence mapping to an HTTP/application view model"
+                );
+            }
+        }
+    }
+
     private boolean isDomainJavaFile(Path file) {
         String normalized = file.toString().replace('\\', '/');
         return normalized.endsWith(".java") && normalized.contains("/domain/");
+    }
+
+    private boolean isApplicationJavaFile(Path file) {
+        String normalized = file.toString().replace('\\', '/');
+        return normalized.endsWith(".java") && normalized.contains("/application/");
+    }
+
+    private boolean isInfrastructureJavaFile(Path file) {
+        String normalized = file.toString().replace('\\', '/');
+        return normalized.endsWith(".java") && normalized.contains("/infrastructure/");
     }
 }

@@ -1,29 +1,36 @@
 <a class="skip-link" href="#admin-main" (click)="focusMain($event)">Bỏ qua điều hướng</a>
-<div class="admin-shell" [class.admin-shell--drawer-open]="drawerOpen()">
+<div
+  class="admin-shell"
+  [class.admin-shell--drawer-open]="drawerOpen()"
+  [class.admin-shell--campaign]="true"
+  [class.admin-shell--sidebar-collapsed]="sidebarCollapsed()"
+>
   <aside class="admin-sidebar" [attr.aria-label]="'Điều hướng ' + workspaceMeta.label">
     <a
       class="admin-brand"
       [routerLink]="workspaceMeta.home"
-      aria-label="Dấu Xanh Hải Phòng — về trang chính"
+      aria-label="Neko Đoàn — về trang chính"
       (click)="closeDrawer()"
     >
       <img
         class="admin-brand__mark"
-        src="brand/dau-xanh-mark.svg"
+        src="brand/neko-doan-v1/neko-doan-mark.svg"
         width="32"
         height="32"
         alt=""
         aria-hidden="true"
       />
-      <span class="admin-brand__copy"
-        ><strong>Dấu Xanh</strong><small>Thành đoàn Hải Phòng</small></span
-      >
+      <span class="admin-brand__copy"><strong>Neko Đoàn</strong></span>
     </a>
-
-    <div class="role-card">
-      <span>Không gian làm việc</span><strong>{{ workspaceMeta.label }}</strong
-      ><small>{{ workspaceMeta.scope }}</small>
-    </div>
+    <button
+      class="sidebar-drawer-close"
+      type="button"
+      aria-label="Thu gọn thanh điều hướng"
+      title="Thu gọn thanh điều hướng"
+      (click)="closeDrawer()"
+    >
+      <app-icon name="arrow-left" />
+    </button>
 
     <nav class="admin-nav">
       @for (group of navigation; track group.label ?? 'primary') {
@@ -39,6 +46,8 @@
                   routerLinkActive="admin-nav__item--active"
                   [routerLinkActiveOptions]="{ exact: true }"
                   class="admin-nav__item"
+                  [attr.aria-label]="item.label"
+                  [attr.title]="item.label"
                   (click)="closeDrawer()"
                   ><app-icon [name]="item.icon" /><span>{{ item.label }}</span></a
                 >
@@ -50,20 +59,35 @@
     </nav>
 
     <button
+      class="sidebar-width-toggle"
+      data-sidebar-width-toggle
+      type="button"
+      [attr.aria-label]="
+        sidebarCollapsed() ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'
+      "
+      [attr.title]="sidebarCollapsed() ? 'Mở rộng thanh điều hướng' : 'Thu gọn thanh điều hướng'"
+      (click)="toggleSidebar()"
+    >
+      <app-icon [name]="sidebarCollapsed() ? 'arrow' : 'arrow-left'" />
+      <span>{{ sidebarCollapsed() ? 'Mở rộng' : 'Thu gọn' }}</span>
+    </button>
+
+    <button
       class="admin-profile"
       data-profile-sidebar
       type="button"
+      aria-label="Mở tài khoản hiện tại"
       [attr.aria-expanded]="profileOpen()"
       aria-controls="account-menu"
       aria-haspopup="dialog"
-      (click)="toggleProfile('sidebar')"
+      (click)="toggleProfile()"
     >
       <span class="avatar" aria-hidden="true">{{ initials() }}</span>
       <span class="admin-profile__copy"
-        ><strong>{{ auth.account()?.displayName }}</strong
+        ><strong>{{ profileLabel() }}</strong
         ><small>{{ workspaceMeta.label }}</small></span
       >
-      <app-icon name="chevron" />
+      <app-icon name="chevron-down" />
     </button>
   </aside>
 
@@ -84,26 +108,6 @@
     >
       <app-icon name="menu" />
     </button>
-    <div class="admin-topbar__context">
-      <strong>{{ topbarTitle() }}</strong
-      ><span><i aria-hidden="true"></i>{{ topbarDetail() }}</span>
-    </div>
-    <div class="admin-topbar__actions">
-      <span class="session-state"><i aria-hidden="true"></i>Đã xác thực</span
-      ><span class="topbar-divider" aria-hidden="true"></span
-      ><button
-        class="topbar-avatar"
-        data-profile-topbar
-        type="button"
-        aria-label="Mở tài khoản"
-        [attr.aria-expanded]="profileOpen()"
-        aria-controls="account-menu"
-        aria-haspopup="dialog"
-        (click)="toggleProfile('topbar')"
-      >
-        {{ initials() }}
-      </button>
-    </div>
   </header>
   @if (session.warningVisible()) {
     <section class="session-warning" role="alert" aria-labelledby="session-warning-title">
@@ -127,7 +131,7 @@
     <section
       id="account-menu"
       class="profile-popover"
-      [class.profile-popover--topbar]="profileOrigin() === 'topbar'"
+      role="dialog"
       aria-label="Tài khoản hiện tại"
       tabindex="-1"
     >
@@ -135,10 +139,6 @@
       ><span>{{ auth.account()?.id }}</span
       ><small>{{ workspaceMeta.label }} · {{ workspaceMeta.scope }}</small>
       <hr />
-      @if (canSwitchWorkspace()) {
-        <a routerLink="/superadmin/lifecycle" (click)="closeProfile()">Superadmin</a>
-        <a routerLink="/admin/scorecard-templates" (click)="closeProfile()">Admin chiến dịch</a>
-      }
       @if (accountError()) {
         <p class="profile-popover__error" role="alert">{{ accountError() }}</p>
       }

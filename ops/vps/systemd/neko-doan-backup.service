@@ -1,0 +1,21 @@
+[Unit]
+Description=Create and verify a local Neko Doan database backup
+Requires=docker.service
+After=docker.service neko-doan.service
+
+[Service]
+Type=oneshot
+User=neko-deploy
+Group=docker
+WorkingDirectory=/opt/neko-doan
+UMask=0077
+ExecStart=/usr/bin/bash /opt/neko-doan/ops/vps/backup.sh /etc/neko-doan/neko-doan.env
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/backups/neko-doan
+TimeoutStartSec=1800

@@ -34,20 +34,19 @@ Dashboard là danh sách quyết định/ngoại lệ, không phải bức tư�
 ### Superadmin hệ thống
 
 ```text
-Tổng quan hệ thống
+Tổng quan
+Bảng Tổng
+Phiên bản
+Điều hành chấm
+Kết quả & đối soát
+Tổ & cán bộ
 
-NỀN TẢNG
-  Danh mục chiến dịch
+QUẢN TRỊ HỆ THỐNG
   Cơ cấu tổ chức
   Tài khoản & quyền
-
-VẬN HÀNH HỆ THỐNG
-  Tích hợp
-  Nhật ký bảo mật
-  Sao lưu & phục hồi
 ```
 
-Không mặc nhiên có công cụ sửa điểm, thẩm định hồ sơ hoặc ban hành thay Admin chiến dịch.
+Superadmin có toàn bộ capability điều hành nhưng dùng đúng các command/audit như Admin; không có đường tắt sửa điểm, ghi đè lịch sử hoặc vượt qua bốn mắt.
 
 ### Admin chiến dịch / chủ chiến dịch
 
@@ -75,18 +74,20 @@ QUẢN TRỊ
 
 Một chiến dịch có thể có nhiều Admin. Mỗi người chỉ nhìn thấy các chiến dịch được cấp grant; quyền ban hành, mở lại hoặc ghi đè là capability riêng, không suy ra từ nhãn “Admin”.
 
-### Tổ trưởng
+### Người theo dõi Tổ (SubAdmin1)
 
 ```text
 Tổng quan tổ
-Hàng chờ của tổ
-Phân công chuyên viên
-Giải trình cần xử lý
-Đối soát điểm
-Lịch sử quyết định
+Tiến độ cán bộ chấm
+Việc chưa chấm
+Phạm vi tiêu chí của tổ
+Việc tôi chấm (chỉ khi được giao)
+Lịch sử của tổ
 ```
 
-### Chuyên viên thẩm định
+SubAdmin1 đọc toàn bộ tiến độ trong `teamId` nhờ capability `review.team.overview`. Capability này không tự tạo assignment, quyền duyệt, sửa điểm hay chấm thay. Khi `assessorId` của một tiêu chí là chính SubAdmin1, họ xử lý tiêu chí đó theo cùng rule với Reviewer khác.
+
+### Cán bộ chấm (SubAdmin2)
 
 ```text
 Việc cần làm
@@ -122,9 +123,9 @@ Mục không có quyền không hiển thị. Tuy vậy server vẫn là nguồn
 
 ## 4. App shell
 
-- Sidebar: 256px mở, 64px thu gọn, drawer trên mobile; nhóm và nhãn role rõ ràng.
-- Topbar 64px: campaign switcher, giai đoạn/deadline dạng compact, thông báo, trợ giúp, tài khoản.
-- Main content: tối đa 1440px; trang bảng/hàng chờ có thể full width.
+- Workspace nghiệp vụ dùng sidebar 304px mở, 88px thu gọn và drawer trên mobile; nhóm và nhãn role rõ ràng.
+- Không dùng topbar trong workspace Admin/Reviewer/Unit. Danh tính, vai trò và menu tài khoản nằm ở chân sidebar; menu tự đóng khi đổi route, thu gọn sidebar, bấm ngoài, nhấn Escape hoặc mất focus cửa sổ.
+- Main content là mặt phẳng full width; bảng điều hành và workbench ưu tiên diện tích dữ liệu, không bọc trong card trang trí.
 - Phase stepper lớn chỉ ở Tổng quan chiến dịch và trang cấu hình thời gian.
 - Breadcrumb dùng cho chiều sâu (`Hàng chờ / Đơn vị A / Tiêu chí 3`), không lặp tên màn hình.
 - Một primary action ở vùng nhìn; thao tác nguy hiểm dùng confirm có hệ quả và lý do bắt buộc.
@@ -156,13 +157,13 @@ Không có nhiều KPI card đồng hạng. Số liệu chỉ xuất hiện nế
 Mục tiêu: chấm một tiêu chí mà không mất ngữ cảnh.
 
 ```text
-Left 280px: hàng chờ, filter, đơn vị hiện tại
-Center flexible: tiêu chí + mô tả + minh chứng + giải trình
-Right 360px: tự chấm, lịch sử vòng 1, nhập điểm, nhận xét, quyết định
-Sticky footer: Lưu nháp · Hoàn thành tiêu chí · Tiêu chí tiếp theo
+Level 1: danh sách tiêu chí được giao · tiến độ theo lượt đơn vị · trạng thái
+Level 2 center: các đơn vị thuộc tiêu chí · tự chấm · minh chứng · trạng thái
+Level 2 right 420px: hồ sơ đơn vị · minh chứng/giải trình · nhập điểm · lý do · quyết định
+Footer inspector: Trả bổ sung (vòng 1) · Chốt vòng hiện tại
 ```
 
-Mỗi quyết định hiện trần điểm, dữ liệu vòng trước và lý do sai lệch. Bằng chứng mở trong panel/modal, không làm mất dữ liệu đang nhập.
+Reviewer luôn đi từ tiêu chí đến đơn vị. Mỗi quyết định hiện trần điểm, dữ liệu vòng trước và lý do sai lệch. Bằng chứng mở trong inspector, không làm mất dữ liệu đang nhập. SubAdmin1 chỉ nhìn tiến độ toàn Tổ; quyền chấm vẫn cần assignment cụ thể.
 
 ### C. Unit workspace — Đơn vị
 
@@ -186,7 +187,7 @@ Không render toàn bộ bảng điểm thành một trang dài. Có chế độ
 | Chuẩn bị | xem hướng dẫn | xem phân công | cấu hình, nhập dữ liệu |
 | Tự chấm mở | nhập hồ sơ, gửi | theo dõi | xử lý chậm/khóa/mở lại |
 | Vòng 1 | chỉ xem | chấm & hoàn thành | phân công, theo dõi SLA |
-| Công bố vòng 1 | xem điểm | xem quyết định | công bố, đối soát |
+| Khóa vòng 1, mở giải trình | chỉ thấy dòng bị giảm và lý do cần đối chiếu | xem quyết định trong phạm vi | mở giải trình, đối soát; không công khai bảng điểm vòng 1 |
 | Giải trình | gửi giải trình | tiếp nhận/đề nghị bổ sung | theo dõi quá hạn |
 | Vòng 2 | xem | quyết định lại | giải quyết xung đột |
 | Chốt | xem/tải kết quả | xem | chốt, snapshot, export |

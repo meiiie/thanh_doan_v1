@@ -8,12 +8,11 @@ import java.util.Map;
 import java.util.Optional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
-import vn.haiphong.campaign.assignment.application.AssignmentWorkbenchView;
+import vn.haiphong.campaign.assignment.application.AssignmentGateway;
 import vn.haiphong.campaign.lifecycle.application.OptimisticConflict;
 
 @Repository
-public class AssignmentRepository {
-    public static final String CAMPAIGN_ID = "campaign-summer-2026";
+public class AssignmentRepository implements AssignmentGateway {
     private static final String SCORECARD_ID = "scorecard-dhcd-v1";
     private final JdbcTemplate jdbc;
 
@@ -32,34 +31,38 @@ public class AssignmentRepository {
         );
     }
 
-    public List<AssignmentWorkbenchView.UnitGroupView> unitGroups() {
+    public List<UnitGroupRow> unitGroups() {
         return jdbc.query(
                 "select code, name, documented_unit_count from unit_group order by name",
-                (rs, row) -> new AssignmentWorkbenchView.UnitGroupView(
+                (rs, row) -> new UnitGroupRow(
                         rs.getString("code"), rs.getString("name"), rs.getInt("documented_unit_count")
                 )
         );
     }
 
-    public List<AssignmentWorkbenchView.TeamView> teams() {
+    public List<TeamRow> teams() {
         return jdbc.query(
                 "select id, name from review_team where campaign_id = ? and enabled = true order by name",
-                (rs, row) -> new AssignmentWorkbenchView.TeamView(rs.getString("id"), rs.getString("name")),
+                (rs, row) -> new TeamRow(rs.getString("id"), rs.getString("name")),
                 CAMPAIGN_ID
         );
     }
 
-    public List<AssignmentWorkbenchView.ReviewerView> reviewers() {
+    public List<ReviewerRow> reviewers() {
         return jdbc.query(
-                "select id, display_name, team_id from app_account " +
-                        "where role = 'REVIEWER' and enabled = true and team_id is not null order by display_name",
-                (rs, row) -> new AssignmentWorkbenchView.ReviewerView(
-                        rs.getString("id"), rs.getString("display_name"), rs.getString("team_id")
+                "select a.id, a.display_name, a.team_id, a.enabled, " +
+                        "case when exists (select 1 from account_capability c " +
+                        "where c.account_id = a.id and c.capability = 'review.team.overview') " +
+                        "then true else false end team_monitor from app_account a " +
+                        "where a.role = 'REVIEWER' and a.team_id is not null order by a.display_name",
+                (rs, row) -> new ReviewerRow(
+                        rs.getString("id"), rs.getString("display_name"), rs.getString("team_id"),
+                        rs.getBoolean("enabled"), rs.getBoolean("team_monitor")
                 )
         );
     }
 
-    public List<AssignmentWorkbenchView.PlanView> plans() {
+    public List<AssignmentPlanRow> plans() {
         Map<String, MutablePlan> plans = new LinkedHashMap<>();
         jdbc.query(
                 "select g.id group_id, p.team_id, p.reviewer_id, coalesce(p.version, 0) version, " +
@@ -82,7 +85,7 @@ public class AssignmentRepository {
         Map<String, ProgressRow> progress = progressByGroup();
         return plans.values().stream().map(plan -> {
             ProgressRow value = progress.getOrDefault(plan.groupId(), ProgressRow.EMPTY);
-            return new AssignmentWorkbenchView.PlanView(
+            return new AssignmentPlanRow(
                     plan.groupId(), List.copyOf(plan.unitGroupCodes()), plan.teamId(), plan.reviewerId(),
                     plan.version(), value.expected(), value.submitted(), value.reviewed(),
                     value.lastReviewedBy(), value.lastReviewedAt()
@@ -115,12 +118,12 @@ public class AssignmentRepository {
         return count != null && count == codes.size();
     }
 
-    public boolean reviewerBelongsToTeam(String reviewerId, String teamId) {
+    public boolean assessorBelongsToTeam(String assessorId, String teamId) {
         return exists(
                 "select count(*) from app_account a join review_team t on t.id = a.team_id " +
                         "where a.id = ? and a.role = 'REVIEWER' and a.enabled = true " +
                         "and t.id = ? and t.campaign_id = ? and t.enabled = true",
-                reviewerId, teamId, CAMPAIGN_ID
+                assessorId, teamId, CAMPAIGN_ID
         );
     }
 
@@ -223,7 +226,7 @@ public class AssignmentRepository {
                 "SELF_ASSESSMENT", "ROUND_1", null, expectedCampaignVersion + 1);
     }
 
-    public void publishRoundOne(int expectedCampaignVersion, OffsetDateTime now, String actorId) {
+    public void openExplanation(int expectedCampaignVersion, OffsetDateTime now, String actorId) {
         int changed = jdbc.update(
                 "update campaign set phase = 'EXPLANATION', version = version + 1 " +
                         "where id = ? and phase = 'ROUND_1' and version = ?",
@@ -235,7 +238,7 @@ public class AssignmentRepository {
                         "where campaign_id = ? and status in ('SUBMITTED','RESUBMITTED')",
                 now, actorId, CAMPAIGN_ID
         );
-        audit(now, actorId, "PUBLISH_ROUND_ONE", "Campaign", CAMPAIGN_ID,
+        audit(now, actorId, "OPEN_EXPLANATION", "Campaign", CAMPAIGN_ID,
                 "ROUND_1", "EXPLANATION", null, expectedCampaignVersion + 1);
     }
 
@@ -279,7 +282,12 @@ public class AssignmentRepository {
         jdbc.update(
                 "update review_case set round2_status = 'QUEUED', version = version + 1 " +
                         "where round1_status = 'COMPLETED' and round2_status = 'NOT_OPEN' " +
-                        "and submission_id in (select id from submission where campaign_id = ?)",
+                        "and id in (select rc2.id from review_case rc2 " +
+                        "join submission s on s.id = rc2.submission_id " +
+                        "join review_decision r1 on r1.review_case_id = rc2.id and r1.round_number = 1 " +
+                        "and r1.revision = (select max(d.revision) from review_decision d " +
+                        "where d.review_case_id = rc2.id and d.round_number = 1) " +
+                        "where s.campaign_id = ? and r1.awarded_score < s.self_score)",
                 CAMPAIGN_ID
         );
         audit(now, actorId, "START_ROUND_TWO", "Campaign", CAMPAIGN_ID,
@@ -337,10 +345,7 @@ public class AssignmentRepository {
 
     private static int value(Integer number) { return number == null ? 0 : number; }
 
-    public record CampaignRow(String id, String name, String phase, int version, String scorecardStatus) {}
     public record PlanRow(String groupId, String teamId, String reviewerId, int version) {}
-    public record Counts(int expected, int submitted, int reviewed) {}
-    public record ExplanationCounts(int reduced, int explained) {}
     private record MutablePlan(String groupId, String teamId, String reviewerId, int version,
                                List<String> unitGroupCodes) {}
     private record ProgressRow(int expected, int submitted, int reviewed, String lastReviewedBy,

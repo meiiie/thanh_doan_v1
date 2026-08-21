@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Neko Doan database backup schedule
+
+[Timer]
+OnCalendar=*-*-* 02:15:00
+RandomizedDelaySec=15m
+Persistent=true
+Unit=neko-doan-backup.service
+
+[Install]
+WantedBy=timers.target

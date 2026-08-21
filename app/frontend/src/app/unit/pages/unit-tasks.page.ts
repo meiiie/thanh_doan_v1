@@ -1,60 +1,14 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, OnInit, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import type { TaskStatus, UnitTask, UnitTaskView } from '../../api/models';
 import { problemDetail } from '../../core/problem-detail';
-import { CampaignPhase } from '../../shared/domain-types';
 import { targetValue } from '../../shared/form-events';
-
-type TaskStatus = 'NOT_STARTED' | 'DRAFT' | 'SUBMITTED' | 'RESUBMITTED' | 'RETURNED' | 'LOCKED';
-
-interface UnitTask {
-  readonly lineId: string;
-  readonly groupCode: string;
-  readonly lineCode: string;
-  readonly title: string;
-  readonly requirement: string;
-  readonly evidenceHint: string;
-  readonly evidencePolicy: string;
-  readonly evidenceRequired: boolean;
-  readonly summaryRequired: boolean;
-  readonly maximumScore: number;
-  readonly reviewTeamName: string;
-  readonly status: TaskStatus;
-  readonly selfScore: number | null;
-  readonly evidenceUrl: string;
-  readonly summary: string;
-  readonly revision: number;
-  readonly version: number;
-  readonly returnReason: string;
-  readonly returnedAt: string | null;
-  readonly roundOneScore: number | null;
-  readonly roundOneReason: string;
-  readonly roundOneDecidedBy: string;
-  readonly roundOneDecidedAt: string | null;
-  readonly explanationBody: string;
-  readonly explanationEvidenceUrl: string;
-  readonly explanationRevision: number;
-  readonly explanationSubmittedAt: string | null;
-  readonly roundTwoScore: number | null;
-  readonly roundTwoReason: string;
-  readonly roundTwoDecidedBy: string;
-  readonly roundTwoDecidedAt: string | null;
-}
-
-interface UnitTaskView {
-  readonly campaignName: string;
-  readonly phase: CampaignPhase;
-  readonly organizationName: string;
-  readonly unitGroupName: string;
-  readonly tasks: readonly UnitTask[];
-}
 
 interface Draft {
   selfScore: number | null;
   evidenceUrl: string;
   summary: string;
-  explanationBody: string;
-  explanationEvidenceUrl: string;
 }
 
 @Component({
@@ -80,8 +34,6 @@ export class UnitTasksPage implements OnInit {
         selfScore: task.selfScore,
         evidenceUrl: task.evidenceUrl,
         summary: task.summary,
-        explanationBody: task.explanationBody,
-        explanationEvidenceUrl: task.explanationEvidenceUrl,
       }
     );
   }
@@ -99,28 +51,11 @@ export class UnitTasksPage implements OnInit {
     this.patchDraft(task, { summary: targetValue(event) });
   }
 
-  protected setExplanation(task: UnitTask, event: Event): void {
-    this.patchDraft(task, { explanationBody: targetValue(event) });
-  }
-
-  protected setExplanationEvidence(task: UnitTask, event: Event): void {
-    this.patchDraft(task, { explanationEvidenceUrl: targetValue(event) });
-  }
-
   protected editable(task: UnitTask): boolean {
     return (
       (this.view()?.phase === 'SELF_ASSESSMENT' ||
         (this.view()?.phase === 'ROUND_1' && task.status === 'RETURNED')) &&
       ['NOT_STARTED', 'DRAFT', 'RETURNED'].includes(task.status)
-    );
-  }
-
-  protected canExplain(task: UnitTask): boolean {
-    return (
-      this.view()?.phase === 'EXPLANATION' &&
-      task.roundOneScore !== null &&
-      task.selfScore !== null &&
-      task.roundOneScore < task.selfScore
     );
   }
 
@@ -167,36 +102,6 @@ export class UnitTasksPage implements OnInit {
     }
   }
 
-  protected async submitExplanation(task: UnitTask): Promise<void> {
-    if (this.busyLine() || !this.canExplain(task)) return;
-    this.busyLine.set(task.lineId);
-    this.message.set('');
-    try {
-      const draft = this.draft(task);
-      const updated = await firstValueFrom(
-        this.http.post<UnitTaskView>(
-          `/api/unit/tasks/${encodeURIComponent(task.lineId)}/explanation`,
-          {
-            body: draft.explanationBody,
-            evidenceUrl: draft.explanationEvidenceUrl,
-            expectedRevision: task.explanationRevision,
-          },
-          { headers: { 'Idempotency-Key': crypto.randomUUID() } },
-        ),
-      );
-      this.apply(updated);
-      this.message.set(`Đã gửi giải trình dòng ${task.lineCode} cho cán bộ vòng 2.`);
-    } catch (error) {
-      this.message.set(
-        error instanceof HttpErrorResponse
-          ? problemDetail(error, 'Không thể gửi giải trình.')
-          : 'Không thể gửi giải trình.',
-      );
-    } finally {
-      this.busyLine.set(null);
-    }
-  }
-
   private async load(): Promise<void> {
     try {
       this.apply(await firstValueFrom(this.http.get<UnitTaskView>('/api/unit/tasks')));
@@ -215,8 +120,6 @@ export class UnitTasksPage implements OnInit {
             selfScore: task.selfScore,
             evidenceUrl: task.evidenceUrl,
             summary: task.summary,
-            explanationBody: task.explanationBody,
-            explanationEvidenceUrl: task.explanationEvidenceUrl,
           },
         ]),
       ),

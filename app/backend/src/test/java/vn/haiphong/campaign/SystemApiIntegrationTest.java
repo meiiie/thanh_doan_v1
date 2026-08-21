@@ -6,6 +6,7 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -34,6 +35,11 @@ class SystemApiIntegrationTest {
 
     @Test
     void api_is_deny_by_default_and_login_creates_a_real_session() throws Exception {
+        http.perform(post("/api/auth/login")
+                        .contentType("application/json")
+                        .content("{\"username\":\"superadmin\",\"password\":\"Local-Only-Strong-Password-2026\"}"))
+                .andExpect(status().isForbidden());
+
         http.perform(get("/api/auth/me"))
                 .andExpect(status().isUnauthorized())
                 .andExpect(header().exists("X-Correlation-ID"))
@@ -170,6 +176,44 @@ class SystemApiIntegrationTest {
         http.perform(get("/api/scorecards/current").session(accountSession))
                 .andExpect(status().isOk());
         removeAccount("first.login.admin");
+    }
+
+    @Test
+    void superadmin_can_lock_and_unlock_an_account_with_audit() throws Exception {
+        removeAccount("status.admin");
+        MockHttpSession session = login();
+        http.perform(post("/api/accounts").session(session).with(csrf())
+                        .contentType("application/json")
+                        .content("""
+                                {
+                                  "username":"status.admin",
+                                  "displayName":"Admin kiểm tra trạng thái",
+                                  "password":"Temporary-Password-2026",
+                                  "role":"CAMPAIGN_ADMIN"
+                                }
+                                """))
+                .andExpect(status().isOk());
+        String accountId = jdbc.queryForObject(
+                "select id from app_account where username = 'status.admin'", String.class
+        );
+
+        http.perform(patch("/api/accounts/{accountId}/status", accountId).session(session).with(csrf())
+                        .contentType("application/json")
+                        .content("{\"enabled\":false}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.enabled", is(false)));
+        Integer lockAudits = jdbc.queryForObject(
+                "select count(*) from audit_record where aggregate_id = ? and action = 'LOCK_ACCOUNT'",
+                Integer.class, accountId
+        );
+        org.junit.jupiter.api.Assertions.assertEquals(1, lockAudits);
+
+        http.perform(patch("/api/accounts/{accountId}/status", accountId).session(session).with(csrf())
+                        .contentType("application/json")
+                        .content("{\"enabled\":true}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.enabled", is(true)));
+        removeAccount("status.admin");
     }
 
     @Test

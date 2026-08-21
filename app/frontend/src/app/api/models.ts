@@ -1,0 +1,34 @@
+import type { components } from './generated/openapi';
+
+type Schemas = components['schemas'];
+
+export type AccountRole = Schemas['AccountRole'];
+export type AuthenticatedAccount = Schemas['Session'];
+export type CampaignPhase = Schemas['CampaignPhase'];
+export type EvidencePolicy = Schemas['EvidencePolicy'];
+export type CampaignStatus = Schemas['CampaignStatus'];
+export type ScorecardLine = Schemas['ScorecardLine'];
+export type ScorecardGroup = Schemas['ScorecardGroup'];
+export type ScorecardCatalog = Schemas['ScorecardCatalog'];
+export type AssignmentPlan = Schemas['AssignmentPlan'];
+export type AssignmentWorkbench = Schemas['AssignmentWorkbench'];
+export type TaskStatus = Schemas['TaskStatus'];
+export type UnitTask = Schemas['UnitTask'];
+export type UnitTaskView = Schemas['UnitTaskView'];
+export type UnitFinalResult = Schemas['UnitFinalResult'];
+export type UnitFinalResultLine = Schemas['UnitFinalResultLine'];
+export type ReviewCase = Schemas['ReviewCase'];
+export type ReviewCriterionProgress = Schemas['ReviewCriterionProgress'];
+export type ReviewQueue = Schemas['ReviewQueue'];
+export type ReviewControl = Schemas['ReviewControl'];
+export type ReviewControlCriterion = Schemas['ReviewControlCriterion'];
+export type ReviewControlAssessor = Schemas['ReviewControlAssessor'];
+export type ReviewControlCriterionCases = Schemas['ReviewControlCriterionCases'];
+export type ReviewControlCase = Schemas['ReviewControlCase'];
+export type ResultStatus = Schemas['ResultStatus'];
+export type FinalResultView = Schemas['FinalResult'];
+export type AccountRecord = Schemas['Account'];
+export type OrganizationDirectory = Schemas['OrganizationDirectory'];
+export type DirectoryUnitGroup = Schemas['DirectoryUnitGroup'];
+export type Organization = Schemas['Organization'];
+export type ReviewTeam = Schemas['ReviewTeam'];

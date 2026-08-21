@@ -1,0 +1,225 @@
+.table-scroll {
+  overflow: visible;
+  border-top: 1px solid #e8ebef;
+  border-bottom: 1px solid #e8ebef;
+}
+table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+th {
+  position: sticky;
+  z-index: 3;
+  top: 0;
+  height: 52px;
+  padding: 0 14px;
+  color: #667085;
+  background: rgb(255 255 255 / 96%);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid #e8ebef;
+  text-align: left;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 600;
+}
+td {
+  height: 84px;
+  padding: 13px 14px;
+  border-bottom: 1px solid #eceef1;
+  vertical-align: middle;
+  font-size: 14px;
+  line-height: 20px;
+}
+tbody tr {
+  transition: background var(--motion-fast);
+}
+tbody tr:hover {
+  background: #fafbfc;
+}
+tbody tr.selected {
+  background: #f5f8fc;
+}
+.select-column,
+.select-cell {
+  width: 44px;
+  padding-left: 2px;
+  padding-right: 6px;
+  text-align: center;
+}
+.code-column {
+  width: 72px;
+}
+.scope-column {
+  width: 110px;
+}
+.reviewer-column {
+  width: 160px;
+}
+.score-column,
+.score-cell {
+  width: 52px;
+  text-align: right;
+}
+.header-selector,
+.row-selector {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.header-selector input,
+.row-selector input,
+.scope-options input {
+  width: 17px;
+  height: 17px;
+  margin: 0;
+  accent-color: #1e2632;
+}
+.code-cell button,
+.criterion-button {
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+}
+.code-cell button {
+  color: #273142;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+.criterion-button {
+  width: 100%;
+  display: block;
+}
+.criterion-button strong,
+.criterion-button span {
+  display: block;
+}
+.criterion-button strong {
+  display: -webkit-box;
+  overflow: hidden;
+  color: #202837;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 620;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.criterion-button span {
+  margin-top: 4px;
+  overflow: hidden;
+  color: #5f6978;
+  font-size: 13px;
+  line-height: 19px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.criterion-button span i {
+  margin-inline: 5px;
+  color: #a4abb5;
+  font-style: normal;
+}
+.scope-cell {
+  color: #586273;
+  font-size: 14px;
+}
+.scope-cell.unresolved,
+.reviewer-cell strong.unresolved {
+  color: #a84e00;
+  font-weight: 500;
+}
+.reviewer-cell strong,
+.reviewer-cell span {
+  display: block;
+}
+.reviewer-cell strong {
+  overflow: hidden;
+  color: #303949;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.reviewer-cell span {
+  margin-top: 3px;
+  overflow: hidden;
+  color: #5f6978;
+  font-size: 13px;
+  line-height: 19px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.score-cell {
+  color: #202837;
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.empty {
+  height: 180px;
+  color: var(--muted);
+  text-align: center;
+}
+.table-footer {
+  min-height: 66px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+.table-footer p {
+  margin: 0;
+  color: #5f6978;
+  font-size: 12px;
+  line-height: 18px;
+}
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pagination > span {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  margin-right: 10px;
+  padding: 0 14px;
+  color: #4b5565;
+  background: white;
+  border: 1px solid #e1e4e8;
+  border-radius: 8px;
+  font-size: 12px;
+}
+.pagination button {
+  width: 38px;
+  height: 38px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  color: #4d5868;
+  background: white;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: 13px;
+}
+.pagination button:hover:not(:disabled) {
+  background: #f4f5f6;
+}
+.pagination button[aria-current='page'] {
+  color: white;
+  background: #1e2632;
+  border-color: #1e2632;
+}
+.pagination button:disabled {
+  color: #b4bac3;
+}
+.pagination app-icon {
+  width: 17px;
+  height: 17px;
+}

@@ -5,7 +5,7 @@ param(
   [Parameter(Mandatory)]
   [switch]$ConfirmDatabaseReplace,
   [switch]$AllowOutsideWorkspace,
-  [string]$ComposeProject = 'campaign-workflow',
+  [string]$ComposeProject = 'neko-doan',
   [string[]]$ComposeFiles = @('compose.yaml')
 )
 
@@ -32,7 +32,7 @@ if (Test-Path -LiteralPath $checksumPath -PathType Leaf) {
   }
 }
 
-$containerPath = '/tmp/campaign-restore.dump'
+$containerPath = '/tmp/neko-doan-restore.dump'
 $compose = @('compose', '-p', $ComposeProject)
 foreach ($file in $ComposeFiles) {
   $compose += @('-f', (Join-Path $projectRoot $file))

@@ -1,0 +1,78 @@
+<section class="final-results">
+  @if (message()) {
+    <p class="final-message" role="status">{{ message() }}</p>
+  }
+
+  @if (view(); as data) {
+    <header class="final-header">
+      <div>
+        <h1>Kết quả cuối</h1>
+        <p>
+          @if (data.published) {
+            {{ data.organizationName }} · Snapshot phiên {{ data.resultVersion }} đã công bố
+          } @else {
+            Kết quả chỉ xuất hiện sau bước bốn mắt và công bố chính thức
+          }
+        </p>
+      </div>
+      @if (data.published) {
+        <span class="published-state"><app-icon name="lock" /> Bản chốt bất biến</span>
+      }
+    </header>
+
+    @if (data.published) {
+      <section class="score-summary" aria-label="Tổng điểm chính thức">
+        <div class="score-summary__primary">
+          <span>Tổng điểm</span>
+          <strong>{{ formatScore(data.totalScore) }}</strong>
+        </div>
+        <dl>
+          <div>
+            <dt>Điểm nội dung</dt>
+            <dd>{{ formatScore(data.coreScore) }}</dd>
+          </div>
+          <div>
+            <dt>Điểm thưởng</dt>
+            <dd>{{ formatScore(data.bonusScore) }}</dd>
+          </div>
+          <div>
+            <dt>Mức hoàn thành</dt>
+            <dd>{{ formatPercent(data.completionRate) }}</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="final-table" aria-label="Kết quả chính thức theo tiêu chí">
+        <div class="final-table__head" aria-hidden="true">
+          <span>Tiêu chí</span><span>Tự chấm</span><span>Vòng 1</span><span>Vòng 2</span
+          ><span>Chính thức</span>
+        </div>
+        @for (line of data.lines; track line.lineId) {
+          <div class="final-row">
+            <span
+              ><strong>{{ line.lineCode }} · {{ line.title }}</strong
+              ><small>{{
+                line.section === 'CORE' ? 'Nội dung cơ bản' : 'Điểm thưởng'
+              }}</small></span
+            >
+            <span>{{ formatScore(line.selfScore) }}</span>
+            <span>{{ formatScore(line.roundOneScore) }}</span>
+            <span>{{ formatScore(line.roundTwoScore) }}</span>
+            <strong
+              >{{ formatScore(line.finalScore) }} / {{ formatScore(line.maximumScore) }}</strong
+            >
+          </div>
+        }
+      </section>
+    } @else {
+      <div class="final-empty">
+        <span><app-icon name="lock" /></span>
+        <h2>Chưa công bố kết quả cuối</h2>
+        <p>
+          Trang này không suy diễn từ điểm vòng 2. Dữ liệu chỉ được hiển thị từ snapshot đã được
+          người thứ hai phê duyệt và công bố.
+        </p>
+      </div>
+    }
+  }
+</section>

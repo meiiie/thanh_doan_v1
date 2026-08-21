@@ -10,8 +10,40 @@ public record ReviewQueueView(
         String phase,
         String teamId,
         String teamName,
+        TeamOverview teamOverview,
+        List<CriterionProgress> criteria,
         List<CaseView> cases
 ) {
+    public record TeamOverview(
+            int assignedCriteria,
+            int expectedCases,
+            int pendingCases,
+            int completedCases,
+            List<TeamMemberProgress> members
+    ) {}
+
+    public record TeamMemberProgress(
+            String id,
+            String displayName,
+            boolean teamMonitor,
+            int assignedCriteria,
+            int expectedCases,
+            int pendingCases,
+            int completedCases
+    ) {}
+
+    public record CriterionProgress(
+            String groupId,
+            String code,
+            String title,
+            int lineCount,
+            int expectedCases,
+            int submittedCases,
+            int completedCases,
+            int adjustedCases,
+            int returnedCases
+    ) {}
+
     public record CaseView(
             String id,
             String organizationName,

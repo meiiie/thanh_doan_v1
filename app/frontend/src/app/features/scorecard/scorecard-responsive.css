@@ -1,0 +1,136 @@
+@media (max-width: 1279px) {
+  .catalog-page {
+    padding: 32px 36px 22px;
+  }
+  .catalog-header {
+    gap: 24px;
+  }
+  .release-button {
+    min-width: 48px;
+  }
+  .reviewer-column {
+    width: 190px;
+  }
+  .scope-column {
+    width: 132px;
+  }
+}
+
+@media (max-width: 900px) {
+  .catalog-header {
+    flex-direction: column;
+  }
+  .header-actions {
+    width: 100%;
+  }
+  .header-actions button {
+    flex: 1;
+  }
+  .source-panel {
+    grid-template-columns: 1fr;
+  }
+  .table-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .section-tabs {
+    flex-wrap: wrap;
+  }
+  .search-field {
+    width: 100%;
+  }
+  .toolbar-filters {
+    width: 100%;
+  }
+  .status-filter {
+    flex: 0 0 190px;
+  }
+  .status-filter select {
+    width: 100%;
+  }
+  .table-scroll {
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-inline: contain;
+  }
+}
+
+@media (max-width: 639px) {
+  .catalog-page {
+    padding: 22px 18px 18px;
+  }
+  .catalog-header {
+    gap: 20px;
+    padding-bottom: 22px;
+  }
+  h1 {
+    font-size: 26px;
+    line-height: 34px;
+  }
+  .title-line {
+    gap: 12px;
+  }
+  .title-line > span {
+    min-height: 28px;
+    padding-inline: 10px;
+    font-size: 12px;
+  }
+  .catalog-meta {
+    gap: 7px;
+  }
+  .header-actions {
+    flex-direction: column;
+  }
+  .header-actions button {
+    width: 100%;
+  }
+  .master-workbench {
+    padding-top: 22px;
+  }
+  .section-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .section-tabs button {
+    justify-content: space-between;
+    padding-inline: 12px;
+  }
+  .section-tabs button:first-child {
+    grid-column: 1 / -1;
+  }
+  .toolbar-filters {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .status-filter {
+    flex-basis: auto;
+  }
+  .selection-bar,
+  .selection-bar > div {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .selection-bar {
+    padding: 12px;
+  }
+  .selection-actions {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+  }
+  .table-scroll {
+    margin-inline: -4px;
+  }
+  .table-footer {
+    align-items: flex-start;
+    flex-direction: column;
+    padding-top: 14px;
+  }
+  .pagination {
+    width: 100%;
+    justify-content: flex-end;
+  }
+  .pagination > span {
+    margin-right: auto;
+  }
+}

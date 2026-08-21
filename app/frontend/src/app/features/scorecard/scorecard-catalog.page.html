@@ -2,28 +2,53 @@
   @if (catalog(); as scorecard) {
     @if (workbench(); as workflow) {
       <header class="catalog-header">
-        <div>
+        <div class="catalog-heading">
           <div class="title-line">
-            <h1>{{ scorecard.title }}</h1>
+            <h1>Bảng Tổng</h1>
             <span>{{ phaseLabel(workflow.phase) }}</span>
           </div>
-          <p>Phân khối, giao Tổ theo dõi và cán bộ phụ trách trước khi đơn vị nhận việc.</p>
+          <p class="catalog-meta" aria-label="Thông tin nguồn và phạm vi">
+            <span>Nguồn đã đối soát</span><i aria-hidden="true">•</i>
+            <span>{{ scorecard.policy.lineCount }} dòng tính điểm</span><i aria-hidden="true">•</i>
+            <span>{{ scorecard.unitGroups.length }} khối</span><i aria-hidden="true">•</i>
+            <span>{{ totalUnits() }} đơn vị</span>
+          </p>
         </div>
         <div class="header-actions">
           <button type="button" class="source-button" (click)="sourceOpen.set(!sourceOpen())">
-            {{ sourceOpen() ? 'Ẩn nguồn' : 'Đối soát nguồn' }}
+            {{ sourceOpen() ? 'Ẩn đối soát' : 'Đối soát nguồn' }}
           </button>
-          @if (
-            workflow.phase === 'PREPARATION' ||
+          @if (workflow.phase === 'PREPARATION') {
+            <button
+              type="button"
+              class="primary-button release-button"
+              [class.release-button--ready]="
+                workflow.progress.readyGroups === workflow.progress.totalGroups
+              "
+              [disabled]="
+                saving() || workflow.progress.readyGroups !== workflow.progress.totalGroups
+              "
+              [attr.title]="
+                workflow.progress.readyGroups === workflow.progress.totalGroups
+                  ? null
+                  : 'Hoàn tất phân bổ và phân công trước khi ban hành'
+              "
+              (click)="advance()"
+            >
+              <app-icon name="lock" />
+              @if (workflow.progress.readyGroups === workflow.progress.totalGroups) {
+                <span>Kiểm tra & ban hành</span>
+              } @else {
+                <span class="sr-only">Kiểm tra và ban hành — chưa đủ điều kiện</span>
+              }
+            </button>
+          } @else if (
             workflow.phase === 'SELF_ASSESSMENT' ||
             workflow.phase === 'ROUND_1' ||
             workflow.phase === 'EXPLANATION'
           ) {
             <button type="button" class="primary-button" [disabled]="saving()" (click)="advance()">
               @switch (workflow.phase) {
-                @case ('PREPARATION') {
-                  Ban hành phân công
-                }
                 @case ('SELF_ASSESSMENT') {
                   Mở vòng thẩm định 1
                 }
@@ -57,162 +82,188 @@
         </aside>
       }
 
-      <div class="summary-strip" aria-label="Tiến độ bảng điểm">
-        <div>
-          <strong>{{ workflow.progress.readyGroups }}/{{ workflow.progress.totalGroups }}</strong
-          ><span>hạng mục đủ phân công</span>
-        </div>
-        <div>
-          <strong>{{ workflow.progress.expectedTasks }}</strong
-          ><span>công việc đã phát sinh</span>
-        </div>
-        <div>
-          <strong>{{ workflow.progress.submittedTasks }}</strong
-          ><span>hồ sơ đơn vị đã gửi</span>
-        </div>
-        <div>
-          <strong>{{ workflow.progress.reviewedTasks }}</strong
-          ><span>dòng đã thẩm định</span>
-        </div>
-        <div>
-          <strong>{{ scorecard.policy.overallMaximum }}</strong
-          ><span>khung điểm tối đa</span>
-        </div>
-        <div class="group-scope">
-          @for (group of scorecard.unitGroups; track group.code) {
-            <span>{{ group.name }} · {{ group.documentedUnitCount }}</span>
-          }
-        </div>
-      </div>
-
-      <div class="table-shell">
+      <section class="master-workbench" aria-label="Danh sách tiêu chí">
         <div class="table-toolbar">
-          <div class="table-title">
-            <strong>Bảng điều hành</strong>
-            <span>{{ rows().length }}/{{ scorecard.policy.lineCount }} dòng chấm</span>
-          </div>
-          @if (workflow.phase === 'PREPARATION') {
+          <div class="section-tabs" role="tablist" aria-label="Lọc nhóm tiêu chí">
             <button
               type="button"
-              class="bulk-button"
-              [disabled]="selectedGroups().length === 0"
-              (click)="openBulk()"
+              role="tab"
+              [attr.aria-selected]="section() === 'ALL'"
+              [class.active]="section() === 'ALL'"
+              (click)="setSection('ALL')"
             >
-              Phân công {{ selectedGroups().length || '' }} hạng mục
+              Tất cả <span>{{ sectionCounts().ALL }}</span>
             </button>
-          }
-          <label class="search-field">
-            <span class="sr-only">Tìm trong bảng điểm</span>
-            <input
-              type="search"
-              placeholder="Tìm mã hoặc nội dung"
-              [value]="query()"
-              (input)="setQuery($event)"
-            />
-          </label>
-          <label class="section-filter">
-            <span class="sr-only">Lọc phần</span>
-            <select [value]="section()" (change)="setSection($event)">
-              <option value="ALL">Tất cả nội dung</option>
-              <option value="CORE">Điểm cơ bản</option>
-              <option value="BONUS">Điểm thưởng</option>
-            </select>
-          </label>
+            <button
+              type="button"
+              role="tab"
+              [attr.aria-selected]="section() === 'CORE'"
+              [class.active]="section() === 'CORE'"
+              (click)="setSection('CORE')"
+            >
+              Nội dung cơ bản <span>{{ sectionCounts().CORE }}</span>
+            </button>
+            <button
+              type="button"
+              role="tab"
+              [attr.aria-selected]="section() === 'BONUS'"
+              [class.active]="section() === 'BONUS'"
+              (click)="setSection('BONUS')"
+            >
+              Điểm thưởng <span>{{ sectionCounts().BONUS }}</span>
+            </button>
+          </div>
+
+          <div class="toolbar-filters">
+            <label class="status-filter">
+              <span class="sr-only">Lọc trạng thái phân công</span>
+              <select [value]="status()" (change)="setStatus($event)">
+                <option value="ALL">Tất cả trạng thái · {{ statusCounts().ALL }}</option>
+                <option value="UNALLOCATED">Chưa phân bổ · {{ statusCounts().UNALLOCATED }}</option>
+                <option value="UNASSIGNED">Chưa phân công · {{ statusCounts().UNASSIGNED }}</option>
+                <option value="READY">Đã hoàn tất · {{ statusCounts().READY }}</option>
+              </select>
+            </label>
+            <label class="search-field">
+              <span class="sr-only">Tìm trong Bảng Tổng</span>
+              <app-icon name="search" />
+              <input
+                type="search"
+                placeholder="Tìm mã, nội dung, người chấm..."
+                [value]="query()"
+                (input)="setQuery($event)"
+              />
+            </label>
+          </div>
         </div>
+
+        @if (selectedGroups().length) {
+          <div class="selection-bar" role="region" aria-label="Thao tác với tiêu chí đã chọn">
+            <div>
+              <strong>{{ selectedGroups().length }} tiêu chí đã chọn</strong>
+              <button type="button" (click)="selectedGroups.set([])">Bỏ chọn</button>
+            </div>
+            @if (workflow.phase === 'PREPARATION') {
+              <div class="selection-actions">
+                <button type="button" class="bulk-button" (click)="openBulk('scope')">
+                  Phân bổ
+                </button>
+                <button type="button" class="bulk-button" (click)="openBulk('review')">
+                  Phân công
+                </button>
+              </div>
+            }
+          </div>
+        }
 
         <div class="table-scroll">
           <table>
             <thead>
               <tr>
-                <th class="group-column">Hạng mục</th>
-                <th class="code-column">Dòng</th>
-                <th>Nội dung và yêu cầu</th>
-                <th class="evidence-column">Minh chứng đơn vị nhập</th>
-                <th class="assignment-column">Phân công</th>
+                <th class="select-column">
+                  <label class="header-selector">
+                    <input
+                      type="checkbox"
+                      [checked]="allVisibleSelected()"
+                      (change)="toggleVisibleSelection()"
+                    />
+                    <span class="sr-only">Chọn tất cả tiêu chí trên trang</span>
+                  </label>
+                </th>
+                <th class="code-column">Mã</th>
+                <th>Nội dung & quy tắc</th>
+                <th class="scope-column">Áp dụng</th>
+                <th class="reviewer-column">Người chấm</th>
                 <th class="score-column">Điểm</th>
               </tr>
             </thead>
             <tbody>
-              @for (row of rows(); track row.line.id) {
-                <tr [class.row-complete]="plan(row.groupId)?.reviewedTasks">
-                  @if (row.firstInGroup) {
-                    <td class="group-cell" [attr.rowspan]="row.visibleLineCount">
-                      @if (workflow.phase === 'PREPARATION') {
-                        <label class="row-selector">
-                          <input
-                            type="checkbox"
-                            [checked]="isSelected(row.groupId)"
-                            (change)="toggleSelected(row.groupId)"
-                          />
-                          <span class="sr-only">Chọn hạng mục {{ row.groupCode }}</span>
-                        </label>
-                      }
-                      <strong>{{ row.groupCode }}</strong>
-                      @if (row.visibleLineCount > 1) {
-                        <span>{{ row.groupTitle }}</span>
-                      }
-                    </td>
-                  }
+              @for (row of visibleRows(); track row.groupId) {
+                <tr [class.selected]="isSelected(row.groupId)">
+                  <td class="select-cell">
+                    <label class="row-selector">
+                      <input
+                        type="checkbox"
+                        [checked]="isSelected(row.groupId)"
+                        (change)="toggleSelected(row.groupId)"
+                      />
+                      <span class="sr-only">Chọn tiêu chí {{ row.code }}</span>
+                    </label>
+                  </td>
                   <td class="code-cell">
-                    <strong>{{ row.line.code }}</strong>
-                    <span [class.bonus]="row.section === 'BONUS'">{{
-                      row.section === 'CORE' ? 'Cơ bản' : 'Thưởng'
-                    }}</span>
+                    <button type="button" (click)="openGroup(row.groupId)">{{ row.code }}</button>
                   </td>
                   <td class="content-cell">
-                    <strong>{{ row.line.title }}</strong>
-                    @if (row.line.requirement && row.line.requirement !== row.line.title) {
-                      <p>{{ row.line.requirement }}</p>
-                    }
-                    @if (row.line.reportTemplate) {
-                      <small>Mẫu báo cáo: {{ row.line.reportTemplate }}</small>
-                    }
-                  </td>
-                  <td class="evidence-cell">
-                    <span>{{ evidenceLabel(row.line.evidencePolicy) }}</span>
-                    @if (row.line.evidenceHint) {
-                      <p>{{ row.line.evidenceHint }}</p>
-                    }
-                  </td>
-                  @if (row.firstInGroup) {
-                    <td class="assignment-cell" [attr.rowspan]="row.visibleLineCount">
-                      <button type="button" (click)="openGroup(row.groupId)">
-                        <span [class.ready-dot]="isReady(row.groupId)" aria-hidden="true"></span>
-                        {{ isReady(row.groupId) ? 'Đã giao' : 'Chưa đủ' }}
-                      </button>
-                      @if (plan(row.groupId); as assignment) {
-                        @if (assignment.expectedTasks > 0) {
-                          <small
-                            >{{ assignment.submittedTasks }}/{{ assignment.expectedTasks }} đã
-                            gửi</small
-                          >
+                    <button type="button" class="criterion-button" (click)="openGroup(row.groupId)">
+                      <strong>{{ row.title }}</strong>
+                      <span>
+                        {{ row.ruleSummary }}
+                        @if (row.lineCount > 1) {
+                          <i aria-hidden="true">•</i> {{ row.lineCount }} dòng chấm
                         }
-                        @if (assignment.lastReviewedBy) {
-                          <small class="reviewed">{{ assignment.lastReviewedBy }} đã chấm</small>
-                        }
-                      }
-                    </td>
-                  }
-                  <td class="score-cell">{{ row.line.maximumScore }}</td>
+                      </span>
+                    </button>
+                  </td>
+                  <td
+                    class="scope-cell"
+                    [class.unresolved]="!plan(row.groupId)?.unitGroupCodes?.length"
+                  >
+                    {{ unitGroupLabel(plan(row.groupId)) }}
+                  </td>
+                  <td class="reviewer-cell">
+                    <strong [class.unresolved]="!plan(row.groupId)?.reviewerId">
+                      {{ reviewerLabel(plan(row.groupId)) }}
+                    </strong>
+                    <span>{{ teamLabel(plan(row.groupId)) }}</span>
+                  </td>
+                  <td class="score-cell">{{ row.maximumScore }}</td>
                 </tr>
               } @empty {
                 <tr>
-                  <td class="empty" colspan="6">Không có dòng nào khớp bộ lọc.</td>
+                  <td class="empty" colspan="6">Không có tiêu chí nào khớp bộ lọc.</td>
                 </tr>
               }
             </tbody>
           </table>
         </div>
-      </div>
+
+        <footer class="table-footer">
+          <p>Hiển thị {{ pageStart() }}–{{ pageEnd() }} của {{ rows().length }} tiêu chí</p>
+          <div class="pagination" aria-label="Phân trang Bảng Tổng">
+            <span>10 / trang</span>
+            <button
+              type="button"
+              aria-label="Trang trước"
+              [disabled]="page() === 1"
+              (click)="setPage(page() - 1)"
+            >
+              <app-icon name="arrow-left" />
+            </button>
+            @for (pageNumber of [1, 2, 3]; track pageNumber) {
+              @if (pageNumber <= totalPages()) {
+                <button
+                  type="button"
+                  [attr.aria-current]="page() === pageNumber ? 'page' : null"
+                  (click)="setPage(pageNumber)"
+                >
+                  {{ pageNumber }}
+                </button>
+              }
+            }
+            <button
+              type="button"
+              aria-label="Trang sau"
+              [disabled]="page() === totalPages()"
+              (click)="setPage(page() + 1)"
+            >
+              <app-icon name="arrow" />
+            </button>
+          </div>
+        </footer>
+      </section>
 
       @if (inspectorOpen()) {
-        <button
-          class="inspector-scrim"
-          type="button"
-          aria-label="Đóng phân công"
-          (click)="closeInspector()"
-        ></button>
-        <aside class="assignment-inspector" aria-label="Thiết lập phân công">
+        <aside class="assignment-inspector" aria-label="Thiết lập tiêu chí">
           <header>
             <div>
               <span>{{
@@ -221,69 +272,152 @@
               <h2>
                 {{
                   inspectorMode() === 'bulk'
-                    ? selectedGroups().length + ' hạng mục đã chọn'
-                    : activeGroup()?.title
+                    ? selectedGroups().length + ' tiêu chí đã chọn'
+                    : 'Thiết lập tiêu chí'
                 }}
               </h2>
             </div>
-            <button type="button" aria-label="Đóng" (click)="closeInspector()">×</button>
+            <button type="button" aria-label="Đóng" (click)="closeInspector()">
+              <app-icon name="close" />
+            </button>
           </header>
           <div class="inspector-body">
             @if (workflow.phase !== 'PREPARATION') {
-              <p class="locked-note">
-                Bản phân công đã ban hành. Nội dung dưới đây chỉ để đối soát.
-              </p>
+              <p class="locked-note">Phiên bản đã ban hành. Nội dung dưới đây chỉ để đối soát.</p>
             }
-            <fieldset [disabled]="workflow.phase !== 'PREPARATION'">
-              <legend>Khối áp dụng</legend>
-              <p>Đơn vị thuộc các khối được tích sẽ nhận toàn bộ dòng chấm của hạng mục.</p>
-              <div class="scope-options">
-                @for (group of workflow.unitGroups; track group.code) {
-                  <label>
-                    <input
-                      type="checkbox"
-                      [checked]="draftUnitGroups().includes(group.code)"
-                      (change)="toggleUnitGroup(group.code)"
-                    />
-                    <span
-                      ><strong>{{ group.name }}</strong
-                      ><small>{{ group.documentedUnitCount }} đơn vị theo tài liệu</small></span
-                    >
-                  </label>
-                }
-              </div>
-            </fieldset>
-            <fieldset [disabled]="workflow.phase !== 'PREPARATION'">
-              <legend>Thẩm định</legend>
-              <p>Tổ nhận hàng chờ; cán bộ phụ trách là người chịu trách nhiệm chấm.</p>
-              <label class="form-field">
-                <span>Tổ theo dõi</span>
-                <select [value]="draftTeamId()" (change)="setTeam($event)">
-                  <option value="">Chọn tổ</option>
-                  @for (team of workflow.teams; track team.id) {
-                    <option [value]="team.id">{{ team.name }}</option>
+            @if (inspectorFocus() !== 'review') {
+              <fieldset [disabled]="workflow.phase !== 'PREPARATION'">
+                <legend>Phân bổ phạm vi áp dụng</legend>
+                <p>Chọn các khối sẽ nhận tiêu chí này trong bảng làm việc của đơn vị.</p>
+                <div class="scope-options">
+                  @for (group of workflow.unitGroups; track group.code) {
+                    <label>
+                      <input
+                        type="checkbox"
+                        [checked]="draftUnitGroups().includes(group.code)"
+                        (change)="toggleUnitGroup(group.code)"
+                      />
+                      <span
+                        ><strong>{{ group.name }}</strong
+                        ><small>{{ group.documentedUnitCount }} đơn vị</small></span
+                      >
+                    </label>
                   }
-                </select>
-              </label>
-              <label class="form-field">
-                <span>Phụ trách</span>
-                <select
-                  [value]="draftReviewerId()"
-                  (change)="draftReviewerId.set($any($event.target).value)"
-                  [disabled]="!draftTeamId()"
-                >
-                  <option value="">Chọn cán bộ</option>
-                  @for (reviewer of availableReviewers(); track reviewer.id) {
-                    <option [value]="reviewer.id">{{ reviewer.displayName }}</option>
-                  }
-                </select>
-              </label>
-              @if (!workflow.teams.length) {
-                <p class="empty-option">
-                  Superadmin cần tạo Tổ và tài khoản cán bộ trước khi phân công.
+                </div>
+              </fieldset>
+            }
+            @if (inspectorFocus() !== 'scope') {
+              <fieldset [disabled]="workflow.phase !== 'PREPARATION'">
+                <legend>Phân công người chấm</legend>
+                <p>
+                  Tổ theo dõi xác định phạm vi giám sát; cán bộ chấm là người trực tiếp chấm tiêu
+                  chí.
                 </p>
-              }
-            </fieldset>
+                <label class="form-field">
+                  <span>Tổ theo dõi</span>
+                  <select [value]="draftTeamId()" (change)="setTeam($event)">
+                    <option value="">Chọn tổ</option>
+                    @for (team of workflow.teams; track team.id) {
+                      <option [value]="team.id">
+                        {{ team.name }} · {{ team.availableAssessorCount }} cán bộ chấm
+                      </option>
+                    }
+                  </select>
+                </label>
+                @if (selectedTeam(); as team) {
+                  <p class="team-monitor-context">
+                    Người theo dõi Tổ:
+                    <strong>{{ team.monitorName || 'Chưa thiết lập' }}</strong> · SubAdmin1
+                  </p>
+                  <section class="team-preview" aria-label="Thành viên Tổ đã chọn">
+                    <header>
+                      <span>{{ selectedTeamRoster()?.members?.length ?? 0 }} thành viên</span>
+                      <a
+                        [routerLink]="teamsRoute"
+                        [queryParams]="{ team: team.id }"
+                        (click)="closeInspector()"
+                      >
+                        Xem Tổ <app-icon name="arrow" />
+                      </a>
+                    </header>
+                    <div class="team-preview__members">
+                      @for (member of selectedTeamRoster()?.members ?? []; track member.id) {
+                        <div [class.locked]="!member.enabled">
+                          <span class="preview-avatar" aria-hidden="true">{{
+                            member.initials
+                          }}</span>
+                          <span>
+                            <strong>{{ member.displayName }}</strong>
+                            <small>
+                              {{
+                                member.teamMonitor
+                                  ? 'SubAdmin1 · Theo dõi Tổ'
+                                  : 'SubAdmin2 · Cán bộ chấm'
+                              }}
+                              @if (!member.enabled) {
+                                · Đã khóa
+                              }
+                            </small>
+                          </span>
+                          <span class="preview-workload">
+                            <strong>{{ member.assignmentCount }} tiêu chí</strong>
+                            <small>{{ member.estimatedUnits }} lượt dự kiến</small>
+                          </span>
+                        </div>
+                      }
+                    </div>
+                  </section>
+                }
+                <label class="form-field">
+                  <span>Cán bộ chấm</span>
+                  <select
+                    [value]="draftReviewerId()"
+                    (change)="draftReviewerId.set($any($event.target).value)"
+                    [disabled]="!draftTeamId() || !availableReviewers().length"
+                  >
+                    <option value="">Chọn cán bộ</option>
+                    @if (lockedDraftReviewer(); as lockedReviewer) {
+                      <option [value]="lockedReviewer.id" disabled>
+                        {{ lockedReviewer.displayName }} · Tài khoản đã khóa
+                      </option>
+                    }
+                    @for (reviewer of availableReviewers(); track reviewer.id) {
+                      <option [value]="reviewer.id">
+                        {{ reviewer.displayName }} ·
+                        {{ reviewer.teamMonitor ? 'SubAdmin1' : 'SubAdmin2' }}
+                      </option>
+                    }
+                  </select>
+                </label>
+                @if (selectedReviewerRoster(); as reviewer) {
+                  <p class="selected-reviewer-workload">
+                    {{
+                      reviewer.teamMonitor ? 'SubAdmin1 · Theo dõi Tổ' : 'SubAdmin2 · Cán bộ chấm'
+                    }}
+                    · {{ reviewer.assignmentCount }} tiêu chí được giao trực tiếp ·
+                    {{ reviewer.estimatedUnits }} lượt đơn vị dự kiến chấm
+                  </p>
+                }
+                <p class="roster-permission-note">
+                  Admin được xem thành viên để phân công, không chỉnh sửa tài khoản.
+                </p>
+                @if (draftTeamId() && !availableReviewers().length) {
+                  <p class="empty-option">
+                    Tổ này chưa có cán bộ chấm khả dụng. Superadmin cần mở khóa hoặc bổ sung tài
+                    khoản.
+                  </p>
+                } @else if (lockedDraftReviewer()) {
+                  <p class="empty-option">
+                    Cán bộ chấm hiện tại đã bị khóa. Chọn cán bộ khác trước khi lưu.
+                  </p>
+                }
+                @if (!workflow.teams.length) {
+                  <p class="empty-option">
+                    Superadmin cần tạo Tổ và tài khoản cán bộ trước khi phân công.
+                  </p>
+                }
+              </fieldset>
+            }
           </div>
           @if (workflow.phase === 'PREPARATION') {
             <footer>
@@ -294,7 +428,7 @@
                 [disabled]="saving()"
                 (click)="saveAssignment()"
               >
-                {{ saving() ? 'Đang lưu…' : 'Lưu phân công' }}
+                {{ saving() ? 'Đang lưu…' : 'Lưu thay đổi' }}
               </button>
             </footer>
           }
@@ -304,6 +438,6 @@
   } @else if (error()) {
     <p class="load-error" role="alert">{{ error() }}</p>
   } @else {
-    <p class="loading">Đang đọc dữ liệu bảng điểm…</p>
+    <p class="loading">Đang đọc Bảng Tổng…</p>
   }
 </section>

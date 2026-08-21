@@ -1,0 +1,144 @@
+@if (view(); as data) {
+  <section class="unit-results" [class.unit-results--inspector]="selectedTask()">
+    <main>
+      <header class="results-header">
+        <div>
+          <h1>Giải trình</h1>
+          <p>{{ data.organizationName }} · Xử lý riêng những tiêu chí bị giảm điểm</p>
+        </div>
+        <aside>
+          <app-icon name="help" /> Điểm thẩm định không được công khai theo bảng đầy đủ. Chỉ dòng bị
+          giảm điểm mới mở để đơn vị đối chiếu và giải trình.
+        </aside>
+      </header>
+
+      @if (message()) {
+        <p class="results-message" role="status">{{ message() }}</p>
+      }
+
+      <section class="results-table" aria-label="Kết quả theo tiêu chí">
+        <div class="results-table__head">
+          <span>Tiêu chí</span><span>Điểm tự chấm</span><span>Điểm cần đối chiếu</span
+          ><span>Trạng thái</span>
+        </div>
+        @for (task of visibleTasks(); track task.lineId) {
+          <button type="button" class="result-row" (click)="selectTask(task)">
+            <span
+              ><strong>{{ task.lineCode }} · {{ task.title }}</strong
+              ><small>{{ task.reviewTeamName }}</small></span
+            >
+            <span>{{ task.selfScore }} điểm</span>
+            <strong [class.adjusted]="changed(task)">{{ resultScore(task) }} điểm</strong>
+            <span class="result-status" [class.adjusted]="changed(task)"
+              >{{ statusLabel(task) }} <app-icon name="chevron"
+            /></span>
+          </button>
+        } @empty {
+          <div class="results-empty">
+            <div>
+              <app-icon name="results" />
+              <h2>{{ emptyTitle(data.phase) }}</h2>
+              <p>{{ emptyDescription(data.phase) }}</p>
+            </div>
+          </div>
+        }
+      </section>
+    </main>
+
+    @if (selectedTask(); as task) {
+      <aside class="result-inspector" [attr.aria-label]="'Chi tiết ' + task.lineCode">
+        <header>
+          <h2>{{ task.lineCode }} · {{ task.title }}</h2>
+          <button
+            type="button"
+            class="icon-button"
+            aria-label="Đóng chi tiết"
+            (click)="closeTask()"
+          >
+            <app-icon name="close" />
+          </button>
+        </header>
+        <div class="result-inspector__body">
+          <section class="timeline-step">
+            <span class="timeline-icon"><app-icon name="organization" /></span>
+            <div>
+              <h3>Tự chấm</h3>
+              <p>{{ task.selfScore }} / {{ task.maximumScore }} điểm</p>
+              @if (task.summary) {
+                <div class="timeline-note">{{ task.summary }}</div>
+              }
+              @if (task.evidenceUrl) {
+                <a [href]="task.evidenceUrl" target="_blank" rel="noopener noreferrer"
+                  >Mở minh chứng gốc <app-icon name="arrow"
+                /></a>
+              }
+            </div>
+          </section>
+          <section class="timeline-step">
+            <span class="timeline-icon"><app-icon name="check" /></span>
+            <div>
+              <h3>Kết quả cần đối chiếu</h3>
+              <time>{{ task.roundOneDecidedAt ?? '' }}</time>
+              <p [class.adjusted]="changed(task)">
+                {{ resultScore(task) }} / {{ task.maximumScore }} điểm
+              </p>
+              @if (task.roundOneReason; as reason) {
+                <div class="timeline-note">{{ reason }}</div>
+              }
+            </div>
+          </section>
+
+          @if (changed(task)) {
+            <section class="explanation-form">
+              <h3>Giải trình</h3>
+              <p>
+                Trình bày rõ nội dung và bổ sung minh chứng. Mỗi lần gửi tạo một phiên lịch sử mới.
+              </p>
+              <label
+                >Nội dung giải trình
+                <textarea
+                  rows="6"
+                  maxlength="4000"
+                  [value]="draft(task).body"
+                  [disabled]="!canExplain(task)"
+                  (input)="setBody(task, $event)"
+                ></textarea>
+                <small>{{ draft(task).body.length }} / 4.000</small>
+              </label>
+              <label
+                >Minh chứng bổ sung
+                <input
+                  type="url"
+                  placeholder="https://…"
+                  [value]="draft(task).evidenceUrl"
+                  [disabled]="!canExplain(task)"
+                  (input)="setEvidence(task, $event)"
+                />
+              </label>
+              @if (task.explanationRevision > 0) {
+                <p class="revision-note">
+                  Đã gửi phiên {{ task.explanationRevision }}. Nội dung hiển thị là phiên mới nhất.
+                </p>
+              }
+            </section>
+          }
+        </div>
+        @if (changed(task)) {
+          <footer>
+            <button type="button" class="button button--secondary" (click)="closeTask()">
+              Đóng
+            </button>
+            <button
+              type="button"
+              class="button button--primary"
+              [disabled]="!canExplain(task) || busyLine() === task.lineId"
+              (click)="submitExplanation(task)"
+            >
+              Gửi giải trình
+            </button>
+          </footer>
+        }
+      </aside>
+    }
+  </section>
+}

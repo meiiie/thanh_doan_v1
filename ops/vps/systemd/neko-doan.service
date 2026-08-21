@@ -1,0 +1,19 @@
+[Unit]
+Description=Neko Doan application stack
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/neko-doan
+Environment=POSTGRES_PASSWORD=compose-interpolation-placeholder
+ExecStartPre=/usr/bin/bash /opt/neko-doan/ops/vps/preflight.sh /etc/neko-doan/neko-doan.env
+ExecStart=/usr/bin/docker compose --env-file /etc/neko-doan/neko-doan.env -f /opt/neko-doan/compose.yaml -f /opt/neko-doan/compose.vps.yaml up -d --remove-orphans --wait --wait-timeout 180 --pull never
+ExecStop=/usr/bin/docker compose --env-file /etc/neko-doan/neko-doan.env -f /opt/neko-doan/compose.yaml -f /opt/neko-doan/compose.vps.yaml down --timeout 60
+TimeoutStartSec=300
+TimeoutStopSec=120
+
+[Install]
+WantedBy=multi-user.target

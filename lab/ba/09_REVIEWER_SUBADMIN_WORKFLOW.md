@@ -1,4 +1,4 @@
-# BA — Tổ theo dõi, cán bộ phụ trách và luồng thẩm định
+# BA — Tổ theo dõi, cán bộ chấm và luồng thẩm định
 
 Ngày phân tích: 13/08/2026  
 Phạm vi: workbook ĐH/CĐ, vertical slice thẩm định vòng 1, local-only.
@@ -8,7 +8,7 @@ Phạm vi: workbook ĐH/CĐ, vertical slice thẩm định vòng 1, local-only.
 Đúng theo hướng nghiệp vụ đang được đặt ra: cán bộ của các Tổ chuyên môn tiếp nhận những nội dung đơn vị đã tự chấm và gửi, đối chiếu yêu cầu, xem minh chứng/báo cáo, sau đó nhập điểm thẩm định. Tuy nhiên hai cột không đồng nghĩa:
 
 - `Tổ theo dõi` xác định nhóm chuyên môn chịu trách nhiệm hướng dẫn, điều phối và thẩm định hạng mục.
-- `Phụ trách` xác định cán bộ xử lý chính của dòng chấm trong Tổ đó.
+- `Phụ trách` trong Excel được web biểu diễn bằng `Cán bộ chấm`: người được gán trực tiếp để xử lý dòng chấm trong Tổ đó.
 
 Một phân công Admin trên một dòng tiêu chí không phải một hồ sơ thẩm định. Sau khi bảng điểm được áp dụng cho các khối và các đơn vị gửi hồ sơ, phân công này sinh ra nhiều review case:
 
@@ -35,18 +35,22 @@ Sheet `Điểm thưởng` giữ cùng cấu trúc actor với `G — Tự chấm
 
 Màu vàng ở sheet chính không phải bằng chứng quyền đáng tin cậy vì tô cả `Được chấm` và `Link minh chứng`, trong khi sheet thưởng tô đúng vùng đơn vị nhập. Vì workbook không có protection/data validation, web phải phân quyền theo actor và trạng thái thay vì sao chép màu ô.
 
-Ảnh render nguồn được lưu tại `../audits/reviewer-source-analysis/` để đối soát header và vùng nhập.
+Header và vùng nhập được đối soát trực tiếp từ workbook nguồn; ảnh render trung gian không được lưu trong Git.
 
-## 3. Giới hạn quyền của “Subadmin Tổ”
+## 3. Giới hạn quyền của SubAdmin1 và SubAdmin2
 
-Tên gọi sản phẩm nên là `Tổ phụ trách` hoặc `Cán bộ thẩm định`; không cấp vai trò Admin hệ thống chỉ vì người dùng có quyền chấm.
+Không tạo thêm role kỹ thuật. Cả SubAdmin1 và SubAdmin2 là `REVIEWER`; `review.team.overview` chỉ giúp SubAdmin1 theo dõi toàn bộ tình hình của Tổ. `CriterionAssignment.assessorId` mới quyết định ai được chấm.
 
-| Năng lực | Cán bộ phụ trách | Không được phép |
+| Năng lực | Phạm vi được phép | Không được phép |
 | --- | --- | --- |
 | Xem | tiêu chí được giao, điểm tự chấm, link/báo cáo, lịch sử case | case của cán bộ/Tổ khác nếu không được ủy quyền |
 | Ghi | điểm thẩm định, lý do/nhận xét, xác nhận đã kiểm tra minh chứng | sửa tự chấm hoặc minh chứng gốc của đơn vị |
 | Hoàn thành | quyết định trên case của mình khi đủ điều kiện | ban hành bảng điểm, sửa phân khối, sửa tài khoản |
 | Sau hoàn thành | đọc quyết định bất biến | sửa trực tiếp; phải qua thao tác mở lại có lý do/audit |
+
+SubAdmin1 không mặc định duyệt, sửa điểm hay chấm thay SubAdmin2. Nếu Admin gán trực tiếp một tiêu chí cho SubAdmin1, người đó chấm tiêu chí ấy như một assessor bình thường; phạm vi theo dõi Tổ không làm phát sinh quyền ghi.
+
+Projection theo dõi của SubAdmin1 gồm số tiêu chí được giao, số hồ sơ phát sinh, chưa chấm và đã chấm theo từng thành viên. Projection này chỉ đọc; các endpoint ghi vẫn kiểm tra đồng thời `case.reviewerId = actor.id` và `case.teamId = actor.teamId`.
 
 Server về sau phải suy ra `teamId/officerId` từ phiên đăng nhập và assignment snapshot. Biết `caseId` không đủ quyền đọc hoặc ghi.
 
@@ -93,12 +97,13 @@ Bộ chọn tài khoản chỉ phục vụ duyệt UX local. Nếu phiên trình
 
 ## 8. Câu hỏi cần xác nhận với khách hàng
 
-1. Trưởng Tổ có được xem/chấm thay toàn bộ case của Tổ hay chỉ theo dõi và phân lại?
-2. Có cơ chế cán bộ phối hợp/thay thế hay mỗi dòng chỉ có một người chính?
-3. Người chấm có được cho điểm cao hơn tự chấm không; nếu có có bắt buộc ghi lý do?
-4. Ai có quyền mở lại một quyết định đã hoàn thành?
-5. Vòng 1 và vòng 2 do cùng cán bộ xử lý hay có thể chuyển người?
-6. Khi link minh chứng hỏng, cán bộ trả bổ sung ngay hay chỉ giảm điểm rồi chờ giai đoạn giải trình?
+1. Có cơ chế cán bộ phối hợp/thay thế hay mỗi dòng chỉ có một người chính?
+2. Người chấm có được cho điểm cao hơn tự chấm không; nếu có có bắt buộc ghi lý do?
+3. Ai có quyền mở lại một quyết định đã hoàn thành?
+4. Vòng 1 và vòng 2 do cùng cán bộ xử lý hay có thể chuyển người?
+5. Khi link minh chứng hỏng, cán bộ trả bổ sung ngay hay chỉ giảm điểm rồi chờ giai đoạn giải trình?
+
+Đã xác nhận ngày 21/08/2026: SubAdmin1 chỉ theo dõi tình hình toàn Tổ; không mặc định chấm thay, duyệt hoặc sửa điểm. Quyền chấm chỉ phát sinh từ assignment cụ thể.
 
 ## 9. Hàng chờ khi có nhiều chiến dịch, hạng mục và đơn vị
 

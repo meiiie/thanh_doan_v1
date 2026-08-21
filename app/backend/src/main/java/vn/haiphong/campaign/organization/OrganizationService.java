@@ -18,6 +18,7 @@ import vn.haiphong.campaign.lifecycle.domain.DomainRuleViolation;
 public class OrganizationService {
     private static final String CAMPAIGN_ID = "campaign-summer-2026";
     private static final Pattern CODE = Pattern.compile("[A-Z0-9][A-Z0-9._-]{1,39}");
+    private static final Pattern SHA256 = Pattern.compile("[a-f0-9]{64}");
 
     private final OrganizationRepository organizations;
     private final CurrentActor currentActor;
@@ -51,7 +52,12 @@ public class OrganizationService {
         }
         String id = "organization-" + UUID.randomUUID();
         OffsetDateTime now = OffsetDateTime.now(clock);
-        organizations.insertOrganization(id, code, name, unitGroupCode, now, actor.id());
+        SourceReference source = source(command.sourceFileName(), command.sourceSha256(),
+                command.sourceSheetName(), command.sourceRow());
+        organizations.insertOrganization(
+                id, code, name, unitGroupCode, now, actor.id(),
+                source.fileName(), source.sha256(), source.sheetName(), source.row()
+        );
         organizations.createdAudit(now, actor.id(), "CREATE_ORGANIZATION", "Organization", id);
         return organizations.organizations().stream().filter(item -> item.id().equals(id)).findFirst().orElseThrow();
     }
@@ -66,7 +72,12 @@ public class OrganizationService {
         }
         String id = "review-team-" + UUID.randomUUID();
         OffsetDateTime now = OffsetDateTime.now(clock);
-        organizations.insertTeam(id, CAMPAIGN_ID, code, name, now, actor.id());
+        SourceReference source = source(command.sourceFileName(), command.sourceSha256(),
+                command.sourceSheetName(), command.sourceRow());
+        organizations.insertTeam(
+                id, CAMPAIGN_ID, code, name, now, actor.id(),
+                source.fileName(), source.sha256(), source.sheetName(), source.row()
+        );
         organizations.createdAudit(now, actor.id(), "CREATE_REVIEW_TEAM", "ReviewTeam", id);
         return organizations.teams(CAMPAIGN_ID).stream().filter(item -> item.id().equals(id)).findFirst().orElseThrow();
     }
@@ -95,11 +106,40 @@ public class OrganizationService {
         return name;
     }
 
+    private static SourceReference source(String fileName, String sha256, String sheetName, Integer row) {
+        boolean empty = blank(fileName) && blank(sha256) && blank(sheetName) && row == null;
+        if (empty) return new SourceReference(null, null, null, null);
+        String normalizedFileName = fileName == null ? "" : fileName.trim();
+        String normalizedSha256 = sha256 == null ? "" : sha256.trim().toLowerCase(Locale.ROOT);
+        String normalizedSheetName = sheetName == null ? "" : sheetName.trim();
+        if (normalizedFileName.isEmpty() || normalizedFileName.length() > 240 ||
+                !SHA256.matcher(normalizedSha256).matches() ||
+                normalizedSheetName.isEmpty() || normalizedSheetName.length() > 120 ||
+                row == null || row < 1) {
+            throw new DomainRuleViolation(
+                    "SOURCE_REFERENCE_INVALID",
+                    "Nguồn cần đủ tên tệp, SHA-256, tên sheet và số dòng dương."
+            );
+        }
+        return new SourceReference(normalizedFileName, normalizedSha256, normalizedSheetName, row);
+    }
+
+    private static boolean blank(String value) {
+        return value == null || value.isBlank();
+    }
+
     public record DirectoryView(
             List<OrganizationRepository.UnitGroupView> unitGroups,
             List<OrganizationRepository.OrganizationView> organizations,
             List<OrganizationRepository.TeamView> teams
     ) {}
-    public record CreateOrganization(String code, String name, String unitGroupCode) {}
-    public record CreateTeam(String code, String name) {}
+    public record CreateOrganization(
+            String code, String name, String unitGroupCode,
+            String sourceFileName, String sourceSha256, String sourceSheetName, Integer sourceRow
+    ) {}
+    public record CreateTeam(
+            String code, String name,
+            String sourceFileName, String sourceSha256, String sourceSheetName, Integer sourceRow
+    ) {}
+    private record SourceReference(String fileName, String sha256, String sheetName, Integer row) {}
 }

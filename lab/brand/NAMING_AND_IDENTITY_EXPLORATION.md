@@ -1,7 +1,10 @@
 # Khám phá tên và nhận diện sản phẩm
 
 Ngày nghiên cứu: 15/08/2026  
-Trạng thái: concept để duyệt, chưa đổi tên ứng dụng, chưa dùng làm tài sản sản xuất.
+Cập nhật quyết định: 20/08/2026
+Trạng thái: **Neko Đoàn** đã được chủ dự án duyệt; bộ nguồn v1 nằm tại `docs/assets/brand/neko-doan-v1/`, các derivative chạy thật nằm tại `app/frontend/public/brand/neko-doan-v1/`.
+
+> Phần so sánh phía dưới là lịch sử nghiên cứu cho tên cũ. Quyết định mới thay thế tên sản phẩm, không thay đổi chủ thể vận hành Thành đoàn Hải Phòng hoặc phạm vi nghiệp vụ.
 
 ## 1. Vấn đề cần giải quyết
 
@@ -13,17 +16,13 @@ SEO không đến từ logo đơn lẻ. Tên nhất quán, tiêu đề trang mô
 
 | Lớp | Nội dung đề xuất | Vai trò |
 | --- | --- | --- |
-| Tên sản phẩm/site | **Dấu Xanh Hải Phòng** | Ngắn, riêng biệt, dễ nhớ |
-| Tên rút gọn | **Dấu Xanh** | Header hẹp, favicon, giao tiếp nội bộ |
+| Tên sản phẩm/site | **Neko Đoàn** | Tên chính thức được chủ dự án chốt |
+| Tên rút gọn | **Neko Đoàn** | Dùng nhất quán, không tạo thêm biệt danh |
 | Mô tả sản phẩm | **Nền tảng điều hành chiến dịch thanh niên** | Giải nghĩa ngay lần đầu gặp |
 | Chủ thể vận hành | **Thành đoàn Hải Phòng** | Xác lập nguồn chính thức, không trộn vào tên thương hiệu |
-| Mẫu title công khai | `<Tên trang> | Dấu Xanh Hải Phòng` | Nhất quán kết quả tìm kiếm |
+| Mẫu title công khai | `<Tên trang> · Neko Đoàn` | Nhất quán kết quả tìm kiếm |
 
-Ngữ nghĩa của **Dấu Xanh**:
-
-- **Dấu**: dấu vết, minh chứng, xác nhận, trách nhiệm và khả năng kiểm toán.
-- **Xanh**: tuổi trẻ, tình nguyện, tiến bộ và trạng thái hoàn thành tích cực.
-- **Hải Phòng**: phân biệt địa phương và tạo ngữ cảnh tìm kiếm rõ ràng.
+**Neko Đoàn** là thương hiệu sản phẩm; **Thành đoàn Hải Phòng** là chủ thể vận hành. Hai lớp này phải xuất hiện riêng để không biến tên sản phẩm thành tên pháp nhân.
 
 Tên không dùng các từ "hệ thống quản lý" hoặc "LMS" vì quá chung, khó nhớ và không phản ánh giá trị nghiệp vụ.
 
@@ -41,17 +40,13 @@ Thang 1–5; điểm cao là tốt. Đây là đánh giá sản phẩm, chưa ph
 | Khả năng tạo biểu tượng 16 px | 5 | 4 | 3 |
 | Tổng | **30** | 19 | 23 |
 
-Kết luận tạm thời: **Dấu Xanh Hải Phòng** là hướng nên phát triển tiếp. `Đoàn Số Hải Phòng` dễ bị hiểu là một chương trình chuyển đổi số chính thức hoặc tên pháp nhân. `Minh Chứng Xanh` đúng với bước nộp hồ sơ nhưng làm hẹp chấm điểm, điều phối và kết quả.
+Kết luận lịch sử này đã được thay thế bởi quyết định **Neko Đoàn** ngày 20/08/2026.
 
 ## 4. Hệ nhận diện đề xuất
 
 ### Biểu tượng
 
-Một nét hình học liên tục kết hợp:
-
-1. dấu xác nhận;
-2. đường đi của công việc;
-3. lớp sóng/tuyến cảng rất kín đáo để gợi Hải Phòng.
+Biểu tượng chính là **Neko Peek** của Neko Family: Neko màu ngà ấm nhìn ra từ chiếc đuôi graphite cuộn tròn. Chiếc đuôi là phần sở hữu được của silhouette, đồng thời gợi một workspace an toàn và liên tục. Không tạo pose thứ năm hoặc tô lại Neko theo khối/vai trò. Sky chỉ được dùng như tín hiệu trạng thái/luồng ngoài khuôn mặt.
 
 Không dùng lại hoặc biến thể biểu trưng chính thức của Đoàn. Khi cần, biểu trưng cơ quan và logo sản phẩm đứng thành hai thực thể độc lập, có khoảng cách và nhãn vai trò rõ ràng.
 
@@ -59,28 +54,26 @@ Không dùng lại hoặc biến thể biểu trưng chính thức của Đoàn.
 
 | Token | Giá trị | Dùng cho |
 | --- | --- | --- |
-| `brand-blue` | `#0756C9` | Tin cậy, hành động chính |
-| `brand-teal` | `#0B8F75` | Hoàn thành, tiến triển |
-| `ink` | `#172033` | Chữ và bản đơn sắc |
-| `paper` | `#FFFFFF` | Nền logo |
+| `milk` | `#F5F0E6` | Thân Neko, chữ sáng |
+| `cocoa` | `#2A2928` | Đuôi, mắt, chữ chính |
+| `cocoa-lift` | `#454241` | Nếp đuôi phía trước |
+| `mist` | `#E7E3DE` | Nền trung tính sáng |
+| `sky` | `#BBDDF2` | Tín hiệu trạng thái/luồng có tiết chế |
+| `product-blue` | `#0756C9` | Hành động chính trong UI, không tô lại Neko |
 
-Logo chính dùng tối đa hai màu. Không gradient, glow, bóng đổ hoặc hiệu ứng kính trong tài sản cuối. Các hiệu ứng trong ảnh concept chỉ là cách trình bày của công cụ tạo ảnh.
+Mark chính dùng Milk/Cocoa/Cocoa Lift. Không gradient, glow, bóng đổ hoặc hiệu ứng kính trong SVG phát hành. Ảnh 3D mascot và ảnh concept chỉ dùng ở bề mặt cho phép hoặc cổng duyệt, không thay thế mark vector.
 
 ### Quy tắc thu nhỏ
 
 - 16–24 px: chỉ dùng biểu tượng, bỏ chi tiết sóng thứ cấp nếu bị bết.
 - Từ 32 px: biểu tượng đầy đủ.
-- Lockup ngang: biểu tượng + `Dấu Xanh`; dòng `Hải Phòng` chỉ dùng khi đủ rộng.
+- Lockup ngang: biểu tượng + `Neko Đoàn`; dòng `Thành đoàn Hải Phòng` chỉ dùng khi đủ rộng.
 - Logo phải có bản một màu và bản đảo trắng.
 - Wordmark cuối phải dựng bằng vector/chữ thật; không cắt chữ trực tiếp từ ảnh AI.
 
-## 5. Ba concept để duyệt
+## 5. Tài sản chuẩn
 
-1. [Dấu Xanh Hải Phòng](./concepts/01-dau-xanh-hai-phong.png) — hướng khuyến nghị.
-2. [Đoàn Số Hải Phòng](./concepts/02-doan-so-hai-phong.png) — phương án đối chứng thiên về chuyển đổi số.
-3. [Minh Chứng Xanh](./concepts/03-minh-chung-xanh.png) — phương án đối chứng thiên về hồ sơ/minh chứng.
-
-Các ảnh trên là artifact đánh giá hướng, không phải logo cuối. Sau khi duyệt tên và hướng biểu tượng, logo sẽ được dựng lại bằng SVG có lưới, path sạch, vùng an toàn và kiểm thử ở 16/24/32/48 px.
+Concept `docs/assets/brand/neko-doan-v1/concepts/neko-doan-workflow-accent-v1.png` được tạo bằng built-in imagegen để kiểm nghiệm hướng; quyết định cuối giữ Neko Peek chuẩn và chỉ dùng ý niệm Sky ở lockup/social card. Nguồn vector, ICO, PNG theo cỡ, preview, prompt và hash nằm trong cùng brand kit; script đồng bộ và gate chống drift nằm tại `scripts/brand/`. Không lấy ảnh AI làm logo runtime.
 
 ## 6. Kế hoạch SEO đúng phạm vi
 
@@ -92,8 +85,8 @@ Các ảnh trên là artifact đánh giá hướng, không phải logo cuối. S
 
 ### Website công khai trong tương lai
 
-- Homepage có một tên site nhất quán: `Dấu Xanh Hải Phòng`.
-- Dùng `WebSite` structured data với `name`, `alternateName` và URL canonical.
+- Homepage có một tên site nhất quán: `Neko Đoàn`.
+- Dùng `WebSite`, `Organization` và `SoftwareApplication` structured data chỉ khi có URL public tuyệt đối, nội dung public tương ứng và thông tin pháp lý đã xác nhận.
 - Tiêu đề trang ngắn, mô tả đúng nội dung; không nhồi từ khóa.
 - Favicon vuông, URL ổn định, xuất các cỡ 48/96/144 và SVG.
 - Logo có text alternative theo ngữ cảnh. Nếu logo nằm trong link về trang chủ, alt mô tả chức năng/trang đích.
@@ -106,8 +99,8 @@ Ví dụ dữ liệu có cấu trúc chỉ áp dụng khi có website công khai
   "@context": "https://schema.org",
   "@type": "WebSite",
   "url": "https://<ten-mien-cong-khai>/",
-  "name": "Dấu Xanh Hải Phòng",
-  "alternateName": ["Dấu Xanh", "Dau Xanh Hai Phong"]
+  "name": "Neko Đoàn",
+  "alternateName": ["Neko Doan"]
 }
 ```
 
@@ -116,9 +109,9 @@ Ví dụ dữ liệu có cấu trúc chỉ áp dụng khi có website công khai
 1. Chủ dự án duyệt tên và ngữ nghĩa.
 2. Kiểm tra nhãn hiệu, tên miền và tài khoản mạng xã hội bằng quy trình pháp lý/chính thức; tìm kiếm web sơ bộ không thay thế bước này.
 3. Xác nhận quy tắc đồng hiện với biểu trưng Thành đoàn/Đoàn TNCS Hồ Chí Minh.
-4. Dựng SVG gốc và bộ favicon; kiểm thử tương phản, đơn sắc, nền sáng/tối và kích thước nhỏ.
-5. Đổi tên trong UI, metadata, manifest và tài liệu bằng một thay đổi có thể hồi quy.
-6. Chỉ xây website công khai/SEO khi có yêu cầu riêng; không mở index khu vực nghiệp vụ.
+4. Dựng SVG gốc và bộ favicon; kiểm thử tương phản, đơn sắc, nền sáng/tối và kích thước nhỏ. **Đã hoàn thành local.**
+5. Đổi tên trong UI, metadata, manifest và tài liệu bằng một thay đổi có thể hồi quy. **Đã hoàn thành local.**
+6. Chỉ xây website công khai/SEO khi có yêu cầu riêng; không mở index khu vực nghiệp vụ. **Vẫn là cổng ngoài phạm vi.**
 
 ## 8. Nguồn chuẩn đã đối chiếu
 

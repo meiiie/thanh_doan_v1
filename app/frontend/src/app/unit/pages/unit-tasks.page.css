@@ -153,24 +153,13 @@ td {
   margin-top: var(--space-1);
   color: var(--warning);
 }
-.content .return-note,
-.content .decision-note {
+.content .return-note {
   margin-top: var(--space-2);
   padding: var(--space-2);
   border-left: 3px solid var(--warning);
   border-radius: 0 6px 6px 0;
   color: var(--warning);
   background: var(--warning-tint);
-}
-.content .decision-note {
-  border-left-color: var(--info);
-  color: var(--info);
-  background: var(--info-tint);
-}
-.content .decision-note.final {
-  border-left-color: var(--success);
-  color: var(--success);
-  background: var(--success-tint);
 }
 input,
 textarea,

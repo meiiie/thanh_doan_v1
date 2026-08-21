@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Neko Đoàn — công việc rõ người, kết quả rõ nguồn</title>
+  <desc id="desc">Thẻ chia sẻ của nền tảng nội bộ Neko Đoàn do Thành đoàn Hải Phòng vận hành.</desc>
+  <rect width="1200" height="630" fill="#201F1E"/>
+  <rect x="72" y="72" width="410" height="486" rx="72" fill="#E7E3DE"/>
+  <g transform="translate(118 166) scale(1.28)">
+    <path fill="#2A2928" d="M28 148C20 104 43 70 82 57c38-13 91-10 125 16 28 22 37 60 25 94-14 42-53 62-105 61-54-1-91-30-99-80Z"/>
+    <path fill="#F5F0E6" d="M61 133c-7-22-6-53 1-77 5-18 18-25 34-15 21-11 49-14 76-8 10-18 28-18 37 1 10 21 12 52 4 78-8 26-36 42-72 43-36 1-70-7-80-22Z"/>
+    <path fill="#454241" d="M31 136c31 23 72 38 117 41 33 2 61-7 84-29 3 24-7 47-29 62-23 16-59 22-100 16-43-6-71-31-77-63-2-10 0-19 5-27Z"/>
+    <ellipse cx="111" cy="103" rx="10" ry="15" fill="#2A2928"/>
+    <ellipse cx="157" cy="100" rx="10" ry="15" fill="#2A2928"/>
+  </g>
+  <g font-family="Inter, 'Segoe UI', Arial, sans-serif">
+    <circle cx="562" cy="134" r="8" fill="#BBDDF2"/>
+    <text x="586" y="142" fill="#BBDDF2" font-size="18" font-weight="700" letter-spacing="3">THÀNH ĐOÀN HẢI PHÒNG</text>
+    <text x="554" y="274" fill="#F5F0E6" font-size="86" font-weight="700" letter-spacing="-4">Neko Đoàn</text>
+    <text x="558" y="336" fill="#C9C4BE" font-size="28">Nền tảng điều hành chiến dịch thanh niên</text>
+    <line x1="558" y1="392" x2="1080" y2="392" stroke="#454241" stroke-width="2"/>
+    <text x="558" y="452" fill="#F5F0E6" font-size="29" font-weight="650">Công việc rõ người.</text>
+    <text x="558" y="493" fill="#F5F0E6" font-size="29" font-weight="650">Kết quả rõ nguồn.</text>
+    <text x="558" y="552" fill="#8F8B87" font-size="15" font-weight="600" letter-spacing="1.8">PHÂN CÔNG · MINH CHỨNG · THẨM ĐỊNH · ĐỐI SOÁT</text>
+  </g>
+</svg>

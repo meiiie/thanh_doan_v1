@@ -1,0 +1,32 @@
+{
+  "name": "Neko Interface Icons",
+  "version": "1.0.0",
+  "upstream": {
+    "name": "Phosphor Icons",
+    "version": "2.1.1",
+    "license": "MIT",
+    "homepage": "https://phosphoricons.com/",
+    "repository": "https://github.com/phosphor-icons/core",
+    "packageIntegrity": "sha512-v4ARvrip4qBCImOE5rmPUylOEK4iiED9ZyKjcvzuezqMaiRASCHKcRIuvvxL/twvLpkfnEODCOJp5dM4eZilxQ=="
+  },
+  "assets": [
+    {
+      "path": "svg/pencil-simple.svg",
+      "runtime": "pencil-simple.svg",
+      "bytes": 348,
+      "sha256": "999530da442f44d8cf0054364373d16150f3e082c2ac294a4988a9c3a4295c28"
+    },
+    {
+      "path": "svg/eye.svg",
+      "runtime": "eye.svg",
+      "bytes": 701,
+      "sha256": "91d39f20bf95e0f36c07bd79b83a85fe6ff4ca20e2759c4afee7419ef80403fe"
+    },
+    {
+      "path": "svg/eye-slash.svg",
+      "runtime": "eye-slash.svg",
+      "bytes": 1000,
+      "sha256": "070b0296a7df89ebf4cec12436e323b5531d458aa9aed3608924085889e1fd17"
+    }
+  ]
+}

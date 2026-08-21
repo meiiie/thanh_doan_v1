@@ -7,7 +7,7 @@
   },
   "newProjectRoot": "projects",
   "projects": {
-    "campaign-control": {
+    "neko-doan": {
       "projectType": "application",
       "schematics": {},
       "root": "",
@@ -60,10 +60,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "campaign-control:build:production"
+              "buildTarget": "neko-doan:build:production"
             },
             "development": {
-              "buildTarget": "campaign-control:build:development"
+              "buildTarget": "neko-doan:build:development"
             }
           },
           "defaultConfiguration": "development"

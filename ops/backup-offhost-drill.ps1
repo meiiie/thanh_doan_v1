@@ -2,7 +2,7 @@
 param(
   [Parameter(Mandatory)]
   [string]$OffHostDestination,
-  [string]$ComposeProject = 'campaign-workflow',
+  [string]$ComposeProject = 'neko-doan',
   [string[]]$ComposeFiles = @('compose.yaml')
 )
 
@@ -20,7 +20,7 @@ $staging = Join-Path $projectRoot 'backups'
   -ComposeProject $ComposeProject `
   -ComposeFiles $ComposeFiles
 if ($LASTEXITCODE -ne 0) { throw 'Local staging backup failed.' }
-$source = Get-ChildItem -LiteralPath $staging -Filter 'campaign-*.dump' -File |
+$source = Get-ChildItem -LiteralPath $staging -Filter 'neko-doan-*.dump' -File |
   Sort-Object LastWriteTimeUtc -Descending |
   Select-Object -First 1
 if (-not $source) { throw 'Backup script did not create a dump.' }
@@ -34,8 +34,8 @@ $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $remoteDump).Hash
 if ($expected -ne $actual) { throw 'Copied backup failed SHA-256 verification.' }
 
 $suffix = Get-Date -Format 'yyyyMMddHHmmss'
-$container = "campaign-restore-drill-$suffix"
-if (-not $container.StartsWith('campaign-restore-drill-', [System.StringComparison]::Ordinal)) {
+$container = "neko-doan-restore-drill-$suffix"
+if (-not $container.StartsWith('neko-doan-restore-drill-', [System.StringComparison]::Ordinal)) {
   throw 'Unsafe restore drill container name.'
 }
 $passwordBytes = [byte[]]::new(30)
@@ -46,33 +46,33 @@ $drillPassword = [Convert]::ToBase64String($passwordBytes)
 $startedAt = Get-Date
 try {
   docker run -d --name $container `
-    -e "POSTGRES_DB=campaign_restore" `
-    -e "POSTGRES_USER=campaign_restore" `
+    -e "POSTGRES_DB=neko_doan_restore" `
+    -e "POSTGRES_USER=neko_doan_restore" `
     -e "POSTGRES_PASSWORD=$drillPassword" `
     postgres:18-alpine | Out-Null
   if ($LASTEXITCODE -ne 0) { throw 'Could not start isolated restore database.' }
   $ready = $false
   for ($attempt = 0; $attempt -lt 30; $attempt++) {
-    docker exec $container pg_isready -U campaign_restore -d campaign_restore *> $null
+    docker exec $container pg_isready -U neko_doan_restore -d neko_doan_restore *> $null
     if ($LASTEXITCODE -eq 0) { $ready = $true; break }
     Start-Sleep -Seconds 2
   }
   if (-not $ready) { throw 'Isolated restore database did not become ready.' }
-  docker cp $remoteDump "${container}:/tmp/campaign-restore.dump"
+  docker cp $remoteDump "${container}:/tmp/neko-doan-restore.dump"
   if ($LASTEXITCODE -ne 0) { throw 'Could not copy off-host backup into restore drill.' }
   docker exec $container pg_restore `
-    --username=campaign_restore `
-    --dbname=campaign_restore `
+    --username=neko_doan_restore `
+    --dbname=neko_doan_restore `
     --no-owner `
     --single-transaction `
-    /tmp/campaign-restore.dump
+    /tmp/neko-doan-restore.dump
   if ($LASTEXITCODE -ne 0) { throw 'Restore drill failed.' }
-  $lineCount = docker exec $container psql -U campaign_restore -d campaign_restore -tA `
+  $lineCount = docker exec $container psql -U neko_doan_restore -d neko_doan_restore -tA `
     -c 'select count(*) from scorecard_line;'
   if ($LASTEXITCODE -ne 0 -or [int]$lineCount -ne 55) {
     throw "Restore drill expected 55 source lines but found $lineCount."
   }
-  $migrationVersion = docker exec $container psql -U campaign_restore -d campaign_restore -tA `
+  $migrationVersion = docker exec $container psql -U neko_doan_restore -d neko_doan_restore -tA `
     -c 'select max(version) from flyway_schema_history where success = true;'
   if ($LASTEXITCODE -ne 0 -or [int]$migrationVersion -lt 6) {
     throw "Restore drill migration verification failed: $migrationVersion"

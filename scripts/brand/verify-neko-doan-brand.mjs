@@ -31,6 +31,11 @@ function digest(data) {
   return createHash('sha256').update(data).digest('hex');
 }
 
+function portableTextDigest(data) {
+  const normalized = data.toString('utf8').replace(/\r\n?/g, '\n');
+  return digest(normalized);
+}
+
 function pngSize(data) {
   const signature = '89504e470d0a1a0a';
   if (data.subarray(0, 8).toString('hex') !== signature) fail('invalid PNG signature');
@@ -113,8 +118,9 @@ const publishedIconLicense = await readFile(
   path.join(publicInterfaceIcons, 'LICENSE.phosphor.txt'),
 );
 if (
-  digest(iconLicense) !== 'ddbe6082ec3cf979db47e5af549d2849c5d6182b3e005ef91ce1dbb9eb122f11' ||
-  digest(iconLicense) !== digest(publishedIconLicense)
+  portableTextDigest(iconLicense) !==
+    'b5b1f1da112d18ea2147decfd48ddc1bf2b5aeb6c265381579340e95b15a2bb2' ||
+  portableTextDigest(iconLicense) !== portableTextDigest(publishedIconLicense)
 ) {
   fail('Phosphor license drifted from the imported MIT license');
 }
